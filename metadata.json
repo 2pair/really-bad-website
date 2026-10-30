@@ -1,0 +1,10 @@
+{
+  "name": "Really Bad Website",
+  "description": "An interactive showcase and crucible of terrible modern web UX, extreme content shifts, aggressive ads, persistent support chatbots, and controllable hardware resource saturation.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation",
+    "notifications"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
