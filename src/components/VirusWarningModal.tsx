@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, AlertTriangle, X, Terminal, CheckCircle2 } from 'lucide-react';
-import { webMidi } from '../utils/webAudioMidi.ts';
+import { useAudioController } from '../context/AudioControllerContext.tsx';
 
 interface VirusWarningModalProps {
   storageMB: number; // 0 to 4096
@@ -11,6 +11,7 @@ export const VirusWarningModal: React.FC<VirusWarningModalProps> = ({
   storageMB,
   onDismiss,
 }) => {
+  const { playBuzzer } = useAudioController();
   const [isOpen, setIsOpen] = useState(false);
   const [hasTriggered, setHasTriggered] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState(115); // 01:55 countdown
@@ -22,9 +23,9 @@ export const VirusWarningModal: React.FC<VirusWarningModalProps> = ({
     if (storageMB >= 2400 && !hasTriggered) {
       setIsOpen(true);
       setHasTriggered(true);
-      webMidi.playBuzzerSound();
+      playBuzzer();
     }
-  }, [storageMB, hasTriggered]);
+  }, [storageMB, hasTriggered, playBuzzer]);
 
   // Urgency Countdown timer
   useEffect(() => {

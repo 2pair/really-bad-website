@@ -13,7 +13,7 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react';
-import { webMidi } from '../utils/webAudioMidi.ts';
+import { useAudioController } from '../context/AudioControllerContext.tsx';
 import { formatBytes } from '../utils/resourceMath.ts';
 import type { WorkerMetrics } from '../utils/workerManager.ts';
 
@@ -39,7 +39,7 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
   workerMetrics,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMidiOn, setIsMidiOn] = useState(false);
+  const { isAnythingPlaying, toggleGlobalMute } = useAudioController();
   const [fps, setFps] = useState<number>(60);
   const [renderTimeMs, setRenderTimeMs] = useState<number>(1.2);
 
@@ -68,12 +68,6 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
   }, []);
-
-  const handleToggleMidi = () => {
-    webMidi.resumeContext();
-    const nextState = webMidi.toggleMidi();
-    setIsMidiOn(nextState);
-  };
 
   return (
     <div
@@ -136,18 +130,32 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
 
         {/* Right: Audio MIDI toggle & Emergency Stop */}
         <div className="flex items-center gap-2">
-          {/* MIDI Player button */}
+          {/* Global Audio Mute / Unmute Controller */}
           <button
-            onClick={handleToggleMidi}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-              isMidiOn
-                ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-600'
+            onClick={toggleGlobalMute}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-semibold transition-all cursor-pointer ${
+              isAnythingPlaying
+                ? 'bg-emerald-900/70 text-emerald-300 border border-emerald-500 shadow-sm'
                 : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700'
             }`}
-            title={isMidiOn ? 'Disable Retro MIDI' : 'Enable Retro MIDI'}
+            title={
+              isAnythingPlaying
+                ? 'Global Audio: Playing. Click to mute all audio sources'
+                : 'Global Audio: Muted. Click to restore previous audio'
+            }
+            aria-label={isAnythingPlaying ? 'Mute all audio' : 'Unmute all audio'}
           >
-            {isMidiOn ? <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-bounce" /> : <VolumeX className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">MIDI {isMidiOn ? 'ON' : 'OFF'}</span>
+            {isAnythingPlaying ? (
+              <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 text-neutral-400" />
+            )}
+            <span className="hidden sm:inline">
+              {isAnythingPlaying ? 'AUDIO ON' : 'AUDIO MUTED'}
+            </span>
+            <span className="sm:hidden">
+              {isAnythingPlaying ? 'ON' : 'MUTED'}
+            </span>
           </button>
 
           {/* Emergency Stop Button */}

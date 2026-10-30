@@ -7,13 +7,19 @@ export interface SongNote {
 }
 
 /**
- * Robust Web Audio API Synthesizer & Sound Effects Engine.
- * Features a long retro multi-measure opus at a slow tempo (66 BPM)
- * with a distinct blend of full (whole), half, quarter, and eighth notes.
+ * Robust, synchronous Web Audio API Synthesizer & Sound Effects Engine.
+ * 
+ * Complies with strict browser autoplay policies:
+ * 1. Synchronous instantiation & resume directly inside user gesture event frames.
+ * 2. Silent buffer source unlock trick to force audio hardware activation.
+ * 3. Linear ramp envelopes to prevent exponential zero-crossing errors.
+ * 4. Master gain routing (osc -> noteGain -> masterGain -> destination).
+ * 5. Single-use oscillator node lifecycle.
  */
 class WebAudioMidiSynthesizer {
   private ctx: AudioContext | null = null;
   private isPlaying: boolean = false;
+  private isMasterMuted: boolean = false;
   private noteTimeoutId: any = null;
   private currentStep: number = 0;
   private masterGain: GainNode | null = null;
@@ -85,8 +91,12 @@ class WebAudioMidiSynthesizer {
     { melody: 523.25, bass: 130.81, duration: 'full' },    // C5 (4 beats - peaceful full resolution)
   ];
 
+  public hasContext(): boolean {
+    return this.ctx !== null;
+  }
+
   /**
-   * Initializes or resumes the AudioContext synchronously within an active user event.
+   * Initializes or resumes the AudioContext SYNCHRONOUSLY within a user interaction.
    */
   public ensureAudioContext(): AudioContext | null {
     try {
@@ -95,21 +105,39 @@ class WebAudioMidiSynthesizer {
         if (!AudioCtx) return null;
         this.ctx = new AudioCtx();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(0.42, this.ctx.currentTime);
+        this.masterGain.gain.value = this.isMasterMuted ? 0 : 0.42;
         this.masterGain.connect(this.ctx.destination);
       }
-      if (this.ctx && this.ctx.state === 'suspended') {
-        this.ctx.resume();
+
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
       }
+
+      // Hardware wake-up trigger: play an instant 1-sample silent buffer directly in the user gesture
+      try {
+        const buffer = this.ctx.createBuffer(1, 1, 22050);
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.ctx.destination);
+        source.start(0);
+      } catch (e) {}
+
       return this.ctx;
     } catch (e) {
-      console.warn('AudioContext error', e);
+      console.warn('AudioContext init error:', e);
       return null;
     }
   }
 
-  public resumeContext() {
-    return this.ensureAudioContext();
+  public setMasterMute(muted: boolean) {
+    this.isMasterMuted = muted;
+    if (this.masterGain) {
+      this.masterGain.gain.value = muted ? 0 : 0.42;
+    }
+  }
+
+  public getMasterMute(): boolean {
+    return this.isMasterMuted;
   }
 
   /**
@@ -129,6 +157,9 @@ class WebAudioMidiSynthesizer {
     }
   }
 
+  /**
+   * Starts playing the retro MIDI loop immediately.
+   */
   public startMidi() {
     const ctx = this.ensureAudioContext();
     if (!ctx) return;
@@ -137,10 +168,13 @@ class WebAudioMidiSynthesizer {
     this.isPlaying = true;
     this.currentStep = 0;
 
-    // Play gentle opening chime
-    this.playImmediateTone(523.25, 0.25);
+    // Unmute master gain
+    this.setMasterMute(false);
 
-    // Start scheduling notes sequentially
+    // Play an immediate opening synth note directly
+    this.playTone(523.25, 130.81, 0.45);
+
+    // Schedule next note
     this.scheduleNextNote();
   }
 
@@ -154,15 +188,13 @@ class WebAudioMidiSynthesizer {
     this.activeOscs.forEach((osc) => {
       try {
         osc.stop();
+        osc.disconnect();
       } catch (e) {}
     });
     this.activeOscs = [];
   }
 
   public toggleMidi(): boolean {
-    const ctx = this.ensureAudioContext();
-    if (!ctx) return false;
-
     if (this.isPlaying) {
       this.stopMidi();
       return false;
@@ -176,76 +208,64 @@ class WebAudioMidiSynthesizer {
     return this.isPlaying;
   }
 
-  private playImmediateTone(freq: number, duration: number) {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+  private playTone(melody: number, bass: number, durationSec: number) {
+    if (!this.ctx || !this.masterGain) return;
 
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, now);
+    try {
+      const now = Math.max(this.ctx.currentTime, 0) + 0.02;
+      const soundLength = Math.max(0.1, durationSec * 0.92);
 
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.linearRampToValueAtTime(0.01, now + duration);
+      // Melody voice (Square wave with warm filter decay)
+      if (melody > 0) {
+        const osc = this.ctx.createOscillator();
+        const noteGain = this.ctx.createGain();
 
-    osc.connect(gain);
-    gain.connect(this.masterGain || this.ctx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(melody, now);
 
-    osc.start(now);
-    osc.stop(now + duration + 0.02);
+        // Safe linear ramp (never throws on zero)
+        noteGain.gain.setValueAtTime(0.18, now);
+        noteGain.gain.linearRampToValueAtTime(0.015, now + soundLength);
+
+        osc.connect(noteGain);
+        noteGain.connect(this.masterGain);
+
+        osc.start(now);
+        osc.stop(now + soundLength + 0.05);
+        this.activeOscs.push(osc);
+      }
+
+      // Bass voice (Triangle wave with warm mellow sustain)
+      if (bass > 0) {
+        const bassOsc = this.ctx.createOscillator();
+        const bassGain = this.ctx.createGain();
+
+        bassOsc.type = 'triangle';
+        bassOsc.frequency.setValueAtTime(bass, now);
+
+        const bassLength = Math.max(0.12, durationSec * 0.96);
+        bassGain.gain.setValueAtTime(0.24, now);
+        bassGain.gain.linearRampToValueAtTime(0.02, now + bassLength);
+
+        bassOsc.connect(bassGain);
+        bassGain.connect(this.masterGain);
+
+        bassOsc.start(now);
+        bassOsc.stop(now + bassLength + 0.05);
+        this.activeOscs.push(bassOsc);
+      }
+    } catch (e) {
+      console.warn('Tone playback error:', e);
+    }
   }
 
   private scheduleNextNote() {
-
     if (!this.isPlaying || !this.ctx || !this.masterGain) return;
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
 
     const currentNote = this.songNotes[this.currentStep % this.songNotes.length];
     const durationSec = this.getDurationSeconds(currentNote.duration);
-    const now = this.ctx.currentTime;
 
-    // Melody voice (Square wave with warm filter decay)
-    if (currentNote.melody > 0) {
-      const osc = this.ctx.createOscillator();
-      const noteGain = this.ctx.createGain();
-
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(currentNote.melody, now);
-
-      // Articulation: slight envelope decay across the full duration
-      const soundLength = Math.max(0.1, durationSec * 0.92);
-      noteGain.gain.setValueAtTime(0.18, now);
-      noteGain.gain.exponentialRampToValueAtTime(0.015, now + soundLength);
-
-      osc.connect(noteGain);
-      noteGain.connect(this.masterGain);
-
-      osc.start(now);
-      osc.stop(now + soundLength + 0.05);
-      this.activeOscs.push(osc);
-    }
-
-    // Bass voice (Triangle wave with warm mellow sustain)
-    if (currentNote.bass > 0) {
-      const bassOsc = this.ctx.createOscillator();
-      const bassGain = this.ctx.createGain();
-
-      bassOsc.type = 'triangle';
-      bassOsc.frequency.setValueAtTime(currentNote.bass, now);
-
-      const bassLength = Math.max(0.12, durationSec * 0.96);
-      bassGain.gain.setValueAtTime(0.24, now);
-      bassGain.gain.linearRampToValueAtTime(0.02, now + bassLength);
-
-      bassOsc.connect(bassGain);
-      bassGain.connect(this.masterGain);
-
-      bassOsc.start(now);
-      bassOsc.stop(now + bassLength + 0.05);
-      this.activeOscs.push(bassOsc);
-    }
+    this.playTone(currentNote.melody, currentNote.bass, durationSec);
 
     // Clean up terminated oscs
     if (this.activeOscs.length > 20) {
@@ -255,7 +275,7 @@ class WebAudioMidiSynthesizer {
     // Advance step
     this.currentStep++;
 
-    // Schedule next note precisely when current note ends
+    // Schedule next note
     const durationMs = durationSec * 1000;
     this.noteTimeoutId = setTimeout(() => {
       this.scheduleNextNote();
@@ -266,103 +286,114 @@ class WebAudioMidiSynthesizer {
    * Loud, obnoxious "action canceled / forbidden" buzzer sound.
    */
   public playBuzzerSound() {
+    if (this.isMasterMuted) return;
     const ctx = this.ensureAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
+    if (!ctx || !this.masterGain) return;
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    try {
+      const now = Math.max(ctx.currentTime, 0) + 0.01;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(150, now);
-    osc.frequency.linearRampToValueAtTime(100, now + 0.4);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.linearRampToValueAtTime(100, now + 0.4);
 
-    gain.gain.setValueAtTime(0.5, now);
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.41);
+      osc.start(now);
+      osc.stop(now + 0.41);
+    } catch (e) {}
   }
 
   /**
    * Chat sound effect: cheerful two-tone chime for incoming message from Todd.
    */
   public playChatReceiveSound() {
+    if (this.isMasterMuted) return;
     const ctx = this.ensureAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
+    if (!ctx || !this.masterGain) return;
 
-    // 2-tone melodic notification (587.33Hz D5 -> 880Hz A5)
-    [587.33, 880].forEach((freq, idx) => {
-      const t = now + idx * 0.11;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+    try {
+      const now = Math.max(ctx.currentTime, 0) + 0.01;
+      [587.33, 880].forEach((freq, idx) => {
+        const t = now + idx * 0.11;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
 
-      gain.gain.setValueAtTime(0.35, t);
-      gain.gain.linearRampToValueAtTime(0.01, t + 0.25);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.linearRampToValueAtTime(0.01, t + 0.25);
 
-      osc.connect(gain);
-      gain.connect(ctx.destination);
+        osc.connect(gain);
+        gain.connect(this.masterGain!);
 
-      osc.start(t);
-      osc.stop(t + 0.26);
-    });
+        osc.start(t);
+        osc.stop(t + 0.26);
+      });
+    } catch (e) {}
   }
 
   /**
    * Chat sound effect: outgoing snappy pop for user message.
    */
   public playChatSendSound() {
+    if (this.isMasterMuted) return;
     const ctx = this.ensureAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
+    if (!ctx || !this.masterGain) return;
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    try {
+      const now = Math.max(ctx.currentTime, 0) + 0.01;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(440, now);
-    osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.linearRampToValueAtTime(880, now + 0.08);
 
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.11);
+      osc.start(now);
+      osc.stop(now + 0.11);
+    } catch (e) {}
   }
 
   /**
-   * Popup modal swoosh
+   * Popup modal swoosh.
    */
   public playPopupSwoosh() {
+    if (this.isMasterMuted) return;
     const ctx = this.ensureAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
+    if (!ctx || !this.masterGain) return;
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    try {
+      const now = Math.max(ctx.currentTime, 0) + 0.01;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
 
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(300, now);
-    osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.linearRampToValueAtTime(600, now + 0.15);
 
-    gain.gain.setValueAtTime(0.2, now);
-    gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+      osc.connect(gain);
+      gain.connect(this.masterGain);
 
-    osc.start(now);
-    osc.stop(now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch (e) {}
   }
 }
 

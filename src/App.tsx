@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
-import { webMidi } from './utils/webAudioMidi.ts';
+import { AudioControllerProvider, useAudioController } from './context/AudioControllerContext.tsx';
 import { CpuBurningEffect } from './components/CpuBurningEffect.tsx';
 import { StorageCorruptionEffect } from './components/StorageCorruptionEffect.tsx';
 import { UiLagEffect } from './components/UiLagEffect.tsx';
@@ -11,12 +11,14 @@ import { SupportChat } from './components/SupportChat.tsx';
 import { Popups } from './components/Popups.tsx';
 import { SaturationWorkerPool, WorkerMetrics } from './utils/workerManager.ts';
 
-export default function App() {
+function AppContent() {
   // Resource saturation targets
   const [cpu, setCpu] = useState<number>(0); // 0 to 99%
   const [memoryMB, setMemoryMB] = useState<number>(0); // 0 to 4096 MB
   const [storageMB, setStorageMB] = useState<number>(0); // 0 to 4096 MB
-  const [isMidiPlaying, setIsMidiPlaying] = useState<boolean>(false);
+
+  // Audio controller
+  const { isMidiPlaying, toggleMidi, resumeAudioContext } = useAudioController();
 
   // Initial barrage status & user scroll tracking for Todd Chat gating
   const [initialPopupsCleared, setInitialPopupsCleared] = useState<boolean>(false);
@@ -87,19 +89,6 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [hasScrolled]);
 
-  // Global first-interaction listener to unlock Web Audio API
-  useEffect(() => {
-    const unlockAudio = () => {
-      webMidi.resumeContext();
-    };
-    window.addEventListener('click', unlockAudio, { passive: true });
-    window.addEventListener('keydown', unlockAudio, { passive: true });
-    return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('keydown', unlockAudio);
-    };
-  }, []);
-
   // Emergency Stop / Reset
   const handleEmergencyStop = () => {
     setCpu(0);
@@ -139,11 +128,9 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs font-semibold text-neutral-600">
+            {/* Top nav MIDI toggle button tied to Global Audio Controller */}
             <button
-              onClick={() => {
-                const next = webMidi.toggleMidi();
-                setIsMidiPlaying(next);
-              }}
+              onClick={toggleMidi}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-bold transition-all cursor-pointer ${
                 isMidiPlaying
                   ? 'bg-emerald-600 text-white border-emerald-500 shadow-md animate-pulse'
@@ -151,7 +138,11 @@ export default function App() {
               }`}
               title={isMidiPlaying ? 'Pause MIDI synth' : 'Play cheesy retro MIDI music'}
             >
-              {isMidiPlaying ? <Volume2 className="w-3.5 h-3.5 text-white animate-bounce" /> : <VolumeX className="w-3.5 h-3.5 text-neutral-500" />}
+              {isMidiPlaying ? (
+                <Volume2 className="w-3.5 h-3.5 text-white animate-bounce" />
+              ) : (
+                <VolumeX className="w-3.5 h-3.5 text-neutral-500" />
+              )}
               <span>{isMidiPlaying ? 'MIDI: PLAYING 🎵' : 'PLAY MIDI 🎵'}</span>
             </button>
 
@@ -160,7 +151,7 @@ export default function App() {
             </span>
             <button
               onClick={() => {
-                webMidi.ensureAudioContext();
+                resumeAudioContext();
                 setToddPrompt('Hey, did you need something?');
               }}
               className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 cursor-pointer"
@@ -196,7 +187,6 @@ export default function App() {
         showUnskippableAd={showUnskippableAd}
         onCloseUnskippableAd={() => setShowUnskippableAd(false)}
         onInitialPopupsCleared={() => setInitialPopupsCleared(true)}
-        onCookieAccepted={() => setIsMidiPlaying(true)}
       />
 
       {/* 
@@ -214,5 +204,13 @@ export default function App() {
         workerMetrics={workerMetrics}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AudioControllerProvider>
+      <AppContent />
+    </AudioControllerProvider>
   );
 }

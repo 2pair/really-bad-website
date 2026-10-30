@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   Eye,
 } from 'lucide-react';
-import { webMidi } from '../utils/webAudioMidi.ts';
+import { useAudioController } from '../context/AudioControllerContext.tsx';
 
 interface PopupsProps {
   showUnskippableAd: boolean;
@@ -80,6 +80,8 @@ export const Popups: React.FC<PopupsProps> = ({
   onInitialPopupsCleared,
   onCookieAccepted,
 }) => {
+  const { setMidiPlaying, resumeAudioContext, playSwoosh } = useAudioController();
+
   // 1. Initial banner sequencing:
   // Newsletter and Permissions appear immediately!
   const [showNewsletter, setShowNewsletter] = useState(true);
@@ -124,11 +126,17 @@ export const Popups: React.FC<PopupsProps> = ({
   // Newsletter urgency countdown (ticking down from 2 minutes)
   const [newsletterTimer, setNewsletterTimer] = useState(120);
 
+  // Shared audio start interface for closing/accepting popups
+  const triggerAudioStart = () => {
+    resumeAudioContext();
+    setMidiPlaying(true);
+    playSwoosh();
+  };
+
   // Delay before cookie banner visually animates in at the bottom (while blocker is active immediately!)
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowCookieModal(true);
-      webMidi.playPopupSwoosh();
     }, 1400);
 
     return () => clearTimeout(timer);
@@ -136,9 +144,7 @@ export const Popups: React.FC<PopupsProps> = ({
 
   // When cookie popup is accepted: starts audio synth and releases screen interaction blocker
   const handleAcceptCookies = () => {
-    webMidi.ensureAudioContext();
-    webMidi.playPopupSwoosh();
-    webMidi.startMidi();
+    triggerAudioStart();
 
     setIsCookieBlockerActive(false);
     setShowCookieModal(false);
@@ -148,11 +154,33 @@ export const Popups: React.FC<PopupsProps> = ({
       onCookieAccepted();
     }
 
-    // Trigger Ad Blocker Detection popup after 3 seconds of browsing
+    // Trigger Ad Blocker Detection popup after 3.2 seconds of browsing
     setTimeout(() => {
       setShowAdBlockerModal(true);
-      webMidi.playPopupSwoosh();
+      playSwoosh();
     }, 3200);
+  };
+
+  const handleCloseNewsletter = () => {
+    triggerAudioStart();
+    setShowNewsletter(false);
+    setNewsletterDismissed(true);
+  };
+
+  const handleClosePermissions = () => {
+    triggerAudioStart();
+    setShowPermissionPrompt(false);
+    setPermissionDismissed(true);
+  };
+
+  const handleCloseAdBlocker = () => {
+    triggerAudioStart();
+    setShowAdBlockerModal(false);
+  };
+
+  const handleClosePrivacyPolicy = () => {
+    triggerAudioStart();
+    setShowPrivacyPolicyModal(false);
   };
 
   // Check if all initial popups are cleared
@@ -209,7 +237,7 @@ export const Popups: React.FC<PopupsProps> = ({
 
   // Request all browser permissions sequentially
   const handleRequestAllPermissions = () => {
-    webMidi.ensureAudioContext();
+    resumeAudioContext();
 
     // 1. Notification
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -399,6 +427,17 @@ export const Popups: React.FC<PopupsProps> = ({
                           </label>
                         </div>
                       ))}
+                      {/* Save & Close within categories drawer */}
+                      <div className="pt-2 flex items-center justify-between border-t border-neutral-800">
+                        <span className="text-[10px] text-neutral-400 font-mono">836 Partners Synchronized</span>
+                        <button
+                          type="button"
+                          onClick={handleAcceptCookies}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase rounded-lg shadow transition-colors cursor-pointer"
+                        >
+                          Save & Close Gate
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -458,7 +497,7 @@ export const Popups: React.FC<PopupsProps> = ({
           <div className="max-w-md w-full bg-neutral-900 border-2 border-red-500 rounded-2xl p-6 shadow-2xl text-white relative">
             {/* Camouflaged close button */}
             <button
-              onClick={() => setShowAdBlockerModal(false)}
+              onClick={handleCloseAdBlocker}
               className="absolute top-3 right-3 text-neutral-600 hover:text-neutral-300 p-1"
               aria-label="Dismiss ad blocker warning"
             >
@@ -490,10 +529,7 @@ export const Popups: React.FC<PopupsProps> = ({
 
             <div className="flex flex-col gap-2.5">
               <button
-                onClick={() => {
-                  setShowAdBlockerModal(false);
-                  webMidi.playPopupSwoosh();
-                }}
+                onClick={handleCloseAdBlocker}
                 className="w-full py-3 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg cursor-pointer transform active:scale-98 animate-pulse"
               >
                 I Disabled My Ad Blocker! (Show All Ads Now)
@@ -503,7 +539,7 @@ export const Popups: React.FC<PopupsProps> = ({
               <div className="text-center pt-1">
                 <button
                   type="button"
-                  onClick={() => setShowAdBlockerModal(false)}
+                  onClick={handleCloseAdBlocker}
                   className="text-[11px] text-neutral-500 hover:text-neutral-300 underline font-normal bg-transparent border-0 p-0 inline cursor-pointer"
                 >
                   Continue with only 40% of sneaky ads displayed
@@ -549,10 +585,7 @@ export const Popups: React.FC<PopupsProps> = ({
           <div className="relative max-w-lg w-full bg-neutral-100 rounded-2xl p-6 shadow-2xl border border-neutral-300 text-neutral-900">
             {/* Camouflaged close button: pale light gray on light gray */}
             <button
-              onClick={() => {
-                setShowNewsletter(false);
-                setNewsletterDismissed(true);
-              }}
+              onClick={handleCloseNewsletter}
               className="absolute top-3 right-3 p-1 rounded text-neutral-300 hover:text-neutral-500 transition-colors"
               title="Close"
               aria-label="Dismiss newsletter popup"
@@ -583,10 +616,7 @@ export const Popups: React.FC<PopupsProps> = ({
                 className="w-full px-3.5 py-2.5 text-xs rounded-lg border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
               <button
-                onClick={() => {
-                  setShowNewsletter(false);
-                  setNewsletterDismissed(true);
-                }}
+                onClick={handleCloseNewsletter}
                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-md transition-all cursor-pointer"
               >
                 YES! ACCELERATE MY PARADIGM NOW
@@ -594,10 +624,7 @@ export const Popups: React.FC<PopupsProps> = ({
             </div>
 
             <button
-              onClick={() => {
-                setShowNewsletter(false);
-                setNewsletterDismissed(true);
-              }}
+              onClick={handleCloseNewsletter}
               className="w-full text-center text-[10px] text-neutral-400 hover:text-neutral-600 underline cursor-pointer"
             >
               No thanks, I prefer waking up disoriented and unoptimized
@@ -629,10 +656,7 @@ export const Popups: React.FC<PopupsProps> = ({
             </div>
             {/* Camouflaged close button */}
             <button
-              onClick={() => {
-                setShowPermissionPrompt(false);
-                setPermissionDismissed(true);
-              }}
+              onClick={handleClosePermissions}
               className="text-neutral-600 hover:text-neutral-400 p-0.5"
               aria-label="Close permissions prompt"
             >
@@ -665,10 +689,7 @@ export const Popups: React.FC<PopupsProps> = ({
             <div className="text-center pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  setShowPermissionPrompt(false);
-                  setPermissionDismissed(true);
-                }}
+                onClick={handleClosePermissions}
                 className="text-center text-[10px] text-neutral-500 hover:text-neutral-300 underline font-normal bg-transparent border-none p-0 inline cursor-pointer"
               >
                 Deny permissions and risk severe functional breakdown
@@ -696,7 +717,7 @@ export const Popups: React.FC<PopupsProps> = ({
                 <span>GLOBAL TELEMETRY & SYNDICATE ACCORD (v49.8.2-CIRCULAR)</span>
               </div>
               <button
-                onClick={() => setShowPrivacyPolicyModal(false)}
+                onClick={handleClosePrivacyPolicy}
                 className="text-neutral-600 hover:text-neutral-300 p-1 rounded"
                 title="Dismiss policy"
                 aria-label="Close privacy policy"
@@ -896,7 +917,7 @@ export const Popups: React.FC<PopupsProps> = ({
                 Clauses ratified: 836 / 836 Active
               </span>
               <button
-                onClick={() => setShowPrivacyPolicyModal(false)}
+                onClick={handleClosePrivacyPolicy}
                 className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-bold rounded-lg cursor-pointer transition-colors"
               >
                 I Have Read & Understood All 28 Articles (Close)

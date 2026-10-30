@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, X, User } from 'lucide-react';
-import { webMidi } from '../utils/webAudioMidi.ts';
+import { useAudioController } from '../context/AudioControllerContext.tsx';
 import toddPortrait from '../assets/images/support_person_todd_1793320672649.jpg';
 
 interface Message {
@@ -21,6 +21,7 @@ export const SupportChat: React.FC<SupportChatProps> = ({
   externalTriggerPrompt,
   onClearExternalTrigger,
 }) => {
+  const { playChatReceive, playChatSend, resumeAudioContext } = useAudioController();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -82,7 +83,7 @@ export const SupportChat: React.FC<SupportChatProps> = ({
 
   const deliverToddMessage = (text: string) => {
     // Chat receive sound effect
-    webMidi.playChatReceiveSound();
+    playChatReceive();
     setMessages((prev) => [
       ...prev,
       {
@@ -100,9 +101,9 @@ export const SupportChat: React.FC<SupportChatProps> = ({
     e.preventDefault();
     if (!inputText.trim()) return;
 
-    webMidi.ensureAudioContext();
+    resumeAudioContext();
     // Chat send sound effect
-    webMidi.playChatSendSound();
+    playChatSend();
 
     const userText = inputText.trim();
     setMessages((prev) => [
@@ -229,7 +230,7 @@ export const SupportChat: React.FC<SupportChatProps> = ({
         canStart && (
           <button
             onClick={() => {
-              webMidi.ensureAudioContext();
+              resumeAudioContext();
               setIsOpen(true);
               if (messages.length === 0) {
                 deliverToddMessage(scriptedMessages[0]);

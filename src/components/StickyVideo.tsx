@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, X, SkipForward, AlertCircle } from 'lucide-react';
-import { webMidi } from '../utils/webAudioMidi.ts';
+import { useAudioController } from '../context/AudioControllerContext.tsx';
 
 const SCAM_VIDEOS = [
   {
@@ -30,7 +30,12 @@ export const StickyVideo: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isDocked, setIsDocked] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const { isVideoUnmuted, toggleVideoAudio, registerVideoElement } = useAudioController();
+
+  useEffect(() => {
+    registerVideoElement(videoRef.current);
+    return () => registerVideoElement(null);
+  }, [registerVideoElement]);
 
   // Dock to screen corner when user scrolls past
   useEffect(() => {
@@ -72,7 +77,7 @@ export const StickyVideo: React.FC = () => {
         src={currentVideo.src}
         autoPlay
         playsInline
-        muted={isMuted}
+        muted={!isVideoUnmuted}
         onEnded={handleVideoEnded}
         className="w-full h-full object-cover"
       />
@@ -101,22 +106,16 @@ export const StickyVideo: React.FC = () => {
       {/* Bottom control bar with UNMUTE prompt */}
       <div className="absolute bottom-0 left-0 right-0 z-10 p-2 bg-gradient-to-t from-black/95 to-transparent flex items-center justify-between">
         <button
-          onClick={() => {
-            webMidi.ensureAudioContext();
-            setIsMuted((m) => !m);
-            if (videoRef.current) {
-              videoRef.current.muted = !videoRef.current.muted;
-            }
-          }}
+          onClick={toggleVideoAudio}
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-black uppercase transition-all cursor-pointer ${
-            isMuted
+            !isVideoUnmuted
               ? 'bg-amber-400 text-black hover:bg-amber-300 animate-pulse shadow-md'
               : 'bg-neutral-800 text-white hover:bg-neutral-700'
           }`}
-          aria-label={isMuted ? 'Unmute video sound' : 'Mute video sound'}
+          aria-label={!isVideoUnmuted ? 'Unmute video sound' : 'Mute video sound'}
         >
-          {isMuted ? <VolumeX className="w-3.5 h-3.5 text-black" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
-          <span>{isMuted ? 'CLICK TO UNMUTE 🔊' : 'AUDIO ON 🔊'}</span>
+          {!isVideoUnmuted ? <VolumeX className="w-3.5 h-3.5 text-black" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+          <span>{!isVideoUnmuted ? 'CLICK TO UNMUTE 🔊' : 'AUDIO ON 🔊'}</span>
         </button>
 
         <button

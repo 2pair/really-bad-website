@@ -9,7 +9,7 @@ import {
   Shuffle,
   FileText,
 } from 'lucide-react';
-import { webMidi } from '../utils/webAudioMidi.ts';
+import { useAudioController } from '../context/AudioControllerContext.tsx';
 import { StickyVideo } from './StickyVideo.tsx';
 import { ScamAds } from './ScamAds.tsx';
 import { ARTICLES, ArticleData } from '../data/articles.ts';
@@ -24,6 +24,8 @@ export const BadArticle: React.FC<BadArticleProps> = ({
   onTriggerTodd,
   onContinueReading,
 }) => {
+  const { playBuzzer, playSwoosh, resumeAudioContext } = useAudioController();
+
   // Random leading article on initial mount
   const [activeArticleId, setActiveArticleId] = useState<string>(() => {
     const randomIndex = Math.floor(Math.random() * ARTICLES.length);
@@ -79,7 +81,7 @@ export const BadArticle: React.FC<BadArticleProps> = ({
   }, []);
 
   const handleDownloadClick = () => {
-    webMidi.playBuzzerSound();
+    playBuzzer();
   };
 
   const handleSupportClick = () => {
@@ -87,8 +89,8 @@ export const BadArticle: React.FC<BadArticleProps> = ({
   };
 
   const handleSwitchArticle = (articleId: string) => {
-    webMidi.ensureAudioContext();
-    webMidi.playPopupSwoosh();
+    resumeAudioContext();
+    playSwoosh();
     setActiveArticleId(articleId);
     // Scroll back to top of article container
     window.scrollTo({ top: 0, behavior: 'smooth' });
