@@ -1,8 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, VolumeX, X, SkipForward, AlertCircle } from 'lucide-react';
+import { Volume2, VolumeX, X, SkipForward } from 'lucide-react';
 import { useAudioController } from '../context/AudioControllerContext.tsx';
 
 const SCAM_VIDEOS = [
+  {
+    title: 'JACKPOT!! INSTANT MILLIONAIRE (PLAY NOW)',
+    src: '/assets/aistudio/Person_winning_online_casino_jac__e49d53fd_8f465546.mp4',
+    badge: 'VIP CASINO LOOPHOLE',
+  },
+  {
+    title: 'LIMITED TIME: ETERNAL LIFE REVOLUTIONARY PET TECH',
+    src: '/assets/aistudio/Woman_makes_pet_live_forever_a81f1f47_b7146928.mp4',
+    badge: 'IMMORTAL TECH OFFER',
+  },
+  {
+    title: 'DOCTORS CONFIRM: BE 2.5X SMARTER IN 10 DAYS',
+    src: '/assets/aistudio/Man_creating_supplement_advertis__6967b17b_b34ffed8.mp4',
+    badge: 'CLINICAL BRAIN BREAKTHROUGH',
+  },
+  {
+    title: 'PILOT REVEALS: SECRET AIRLINE PASS FOR UNLIMITED FLIGHTS',
+    src: '/assets/aistudio/Pilot_reveals_air_travel_secret_962389df_752224e6.mp4',
+    badge: 'AIRLINE INSIDER LEAK',
+  },
   {
     title: 'BREAKING NEWS: DIRE CONSUMER WARNING',
     src: '/assets/aistudio/Creating_scammy_sales_video_news_5a1cced2_f3d0f1d1.mp4',
@@ -25,10 +45,23 @@ const SCAM_VIDEOS = [
   },
 ];
 
+// Helper to choose a random next index avoiding repeating the current video
+const getRandomNextIndex = (currentIndex: number, total: number) => {
+  if (total <= 1) return 0;
+  let next = Math.floor(Math.random() * total);
+  while (next === currentIndex) {
+    next = Math.floor(Math.random() * total);
+  }
+  return next;
+};
+
 export const StickyVideo: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  // Start at a random video index
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(() =>
+    Math.floor(Math.random() * SCAM_VIDEOS.length)
+  );
   const [isDocked, setIsDocked] = useState(false);
   const { isVideoUnmuted, toggleVideoAudio, registerVideoElement } = useAudioController();
 
@@ -53,9 +86,9 @@ export const StickyVideo: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Handle video rotation on end
+  // Randomized playback order when video finishes
   const handleVideoEnded = () => {
-    setCurrentVideoIndex((prev) => (prev + 1) % SCAM_VIDEOS.length);
+    setCurrentVideoIndex((prev) => getRandomNextIndex(prev, SCAM_VIDEOS.length));
   };
 
   const currentVideo = SCAM_VIDEOS[currentVideoIndex];
@@ -90,7 +123,7 @@ export const StickyVideo: React.FC = () => {
         </div>
         <div className="flex items-center gap-1">
           <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
-            {currentVideoIndex + 1}/{SCAM_VIDEOS.length}
+            {currentVideo.badge}
           </span>
           <button
             onClick={() => setIsDocked(false)}
@@ -121,9 +154,9 @@ export const StickyVideo: React.FC = () => {
         <button
           onClick={handleVideoEnded}
           className="flex items-center gap-1 px-2 py-1 rounded bg-black/70 hover:bg-black text-neutral-300 text-[10px] font-semibold border border-neutral-700 cursor-pointer"
-          title="Next scam video"
+          title="Play random next scam video"
         >
-          <span>Next Video</span>
+          <span>Shuffle Next</span>
           <SkipForward className="w-3 h-3" />
         </button>
       </div>

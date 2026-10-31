@@ -11,7 +11,6 @@ import {
   VolumeX,
   Gauge,
   Clock,
-  Sparkles,
 } from 'lucide-react';
 import { useAudioController } from '../context/AudioControllerContext.tsx';
 import { formatBytes } from '../utils/resourceMath.ts';
@@ -21,6 +20,7 @@ interface ChaosDrawerProps {
   cpu: number;
   memoryMB: number;
   storageMB: number;
+  maxMemoryMB?: number;
   onCpuChange: (val: number) => void;
   onMemoryChange: (val: number) => void;
   onStorageChange: (val: number) => void;
@@ -32,6 +32,7 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
   cpu,
   memoryMB,
   storageMB,
+  maxMemoryMB = 4096,
   onCpuChange,
   onMemoryChange,
   onStorageChange,
@@ -78,20 +79,24 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
       {/* Top Bar of the drawer (always visible at bottom or top of drawer) */}
       <div className="h-13 px-3 sm:px-5 flex items-center justify-between bg-neutral-950 border-b border-neutral-800 shrink-0 select-none">
         {/* Left: Branding & expand button */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 mr-3">
           <button
             onClick={() => setIsOpen((prev) => !prev)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold tracking-wide transition-colors"
-            title={isOpen ? 'Collapse Chaos Lab' : 'Expand Chaos Lab'}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs font-semibold tracking-wide transition-colors cursor-pointer"
+            title={isOpen ? 'Collapse Chaos Experimental Laboratory' : 'Expand Chaos Experimental Laboratory'}
             aria-expanded={isOpen}
           >
-            {isOpen ? <ChevronDown className="w-4 h-4 text-amber-400" /> : <ChevronUp className="w-4 h-4 text-amber-400" />}
-            <span className="hidden sm:inline">CHAOS LAB</span>
-            <span className="sm:hidden">LAB</span>
+            {isOpen ? (
+              <ChevronDown className="w-4 h-4 text-amber-400 animate-bounce" />
+            ) : (
+              <ChevronUp className="w-4 h-4 text-amber-400 animate-bounce" />
+            )}
+            <span className="hidden md:inline">CHAOS EXPERIMENTAL LABORATORY</span>
+            <span className="md:hidden">CHAOS LAB</span>
           </button>
 
           {/* Mini readouts on the bar */}
-          <div className="hidden md:flex items-center gap-4 text-xs font-mono text-neutral-400">
+          <div className="hidden lg:flex items-center gap-4 text-xs font-mono text-neutral-400">
             <span className="flex items-center gap-1">
               <Cpu className={`w-3.5 h-3.5 ${cpu > 70 ? 'text-red-400 animate-pulse' : 'text-neutral-400'}`} />
               CPU: <strong className="text-neutral-200">{cpu}%</strong>
@@ -107,36 +112,35 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
           </div>
         </div>
 
-        {/* Center: Live Performance Introspect (FPS & Latency) */}
-        <div className="flex items-center gap-2 sm:gap-3 text-xs font-mono">
+        {/* Center / Right controls container */}
+        <div className="flex items-center">
+          {/* Unboxed FPS readout: text/icon that changes color based on frame rate */}
           <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-bold ${
+            className={`h-7 flex items-center gap-1 px-1 text-xs font-mono font-bold transition-colors select-none mr-3 sm:mr-4 ${
               fps < 30
-                ? 'bg-red-950/80 border-red-800 text-red-300'
+                ? 'text-red-400'
                 : fps < 50
-                ? 'bg-amber-950/80 border-amber-800 text-amber-300'
-                : 'bg-emerald-950/80 border-emerald-800 text-emerald-300'
+                ? 'text-amber-400'
+                : 'text-emerald-400'
             }`}
+            title="Live Display Frame Rate"
           >
-            <Gauge className="w-3 h-3" />
+            <Gauge className="w-3.5 h-3.5" />
             <span>{fps} FPS</span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800 text-neutral-400 text-[11px]">
-            <Clock className="w-3 h-3 text-neutral-500" />
-            <span>{renderTimeMs} ms</span>
+          <div className="hidden sm:flex items-center gap-1 h-7 px-1 text-neutral-500 text-xs font-mono mr-3 sm:mr-4">
+            <Clock className="w-3 h-3 text-neutral-600" />
+            <span>{renderTimeMs}ms</span>
           </div>
-        </div>
 
-        {/* Right: Audio MIDI toggle & Emergency Stop */}
-        <div className="flex items-center gap-2">
-          {/* Global Audio Mute / Unmute Controller */}
+          {/* Unboxed Global Audio Mute / Unmute Controller: text/icon that changes color to reflect state */}
           <button
             onClick={toggleGlobalMute}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-semibold transition-all cursor-pointer ${
+            className={`h-7 flex items-center gap-1.5 px-1 text-xs font-mono font-semibold transition-colors cursor-pointer mr-3 sm:mr-4 ${
               isAnythingPlaying
-                ? 'bg-emerald-900/70 text-emerald-300 border border-emerald-500 shadow-sm'
-                : 'bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-700'
+                ? 'text-emerald-400 hover:text-emerald-300'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
             title={
               isAnythingPlaying
@@ -146,7 +150,7 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
             aria-label={isAnythingPlaying ? 'Mute all audio' : 'Unmute all audio'}
           >
             {isAnythingPlaying ? (
-              <Volume2 className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />
+              <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
             ) : (
               <VolumeX className="w-3.5 h-3.5 text-neutral-400" />
             )}
@@ -158,14 +162,14 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
             </span>
           </button>
 
-          {/* Emergency Stop Button */}
+          {/* Emergency Stop Button - 1/3 smaller, compact, matching h-7 height */}
           <button
             onClick={onEmergencyStop}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg hover:shadow-red-500/30 transition-all active:scale-95"
+            className="h-7 flex items-center gap-1 px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider shadow hover:shadow-red-500/30 transition-all active:scale-90 cursor-pointer"
             title="Reset all resource usage and clear IndexedDB stores"
           >
-            <AlertOctagon className="w-4 h-4 text-white animate-pulse" />
-            <span>EMERGENCY STOP</span>
+            <AlertOctagon className="w-3 h-3 text-white animate-pulse" />
+            <span className="whitespace-nowrap">EMERGENCY STOP</span>
           </button>
         </div>
       </div>
@@ -204,7 +208,7 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
             </div>
           </div>
 
-          {/* Memory Slider Card */}
+          {/* Memory Slider Card with Dynamic Marshal High Watermark Max */}
           <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 shadow flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -217,14 +221,14 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
                 </span>
               </div>
               <p className="text-xs text-neutral-400 mb-4">
-                Allocates random byte buffers up to 4 GB. Induces main-thread execution stutters, input lag, and dropped frames.
+                Sequential 1024MB worker fleet. Marshal monitors for OOM and clamps maximum slider limit to nearest full worker high watermark.
               </p>
               <input
                 type="range"
                 min="0"
-                max="4096"
+                max={maxMemoryMB}
                 step="1"
-                value={memoryMB}
+                value={Math.min(memoryMB, maxMemoryMB)}
                 aria-label="In-Memory Footprint Target"
                 onChange={(e) => onMemoryChange(Number(e.target.value))}
                 className="w-full accent-blue-500 cursor-pointer h-2 bg-neutral-800 rounded-lg appearance-none"
@@ -232,7 +236,7 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
             </div>
             <div className="mt-3 pt-3 border-t border-neutral-800 flex justify-between text-[11px] font-mono text-neutral-500">
               <span>Allocated: {formatBytes(workerMetrics.totalMemoryBytes)}</span>
-              <span>Max: 4.0 GB</span>
+              <span>Watermark Limit: {maxMemoryMB} MB ({(maxMemoryMB / 1024).toFixed(1)} GB)</span>
             </div>
           </div>
 

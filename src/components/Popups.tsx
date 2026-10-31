@@ -361,7 +361,7 @@ export const Popups: React.FC<PopupsProps> = ({
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-widest text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800">
-                      Mandatory Consent Gate
+                      Mandatory Consent Agreement
                     </span>
                     <h3 className="text-base sm:text-lg font-black text-white leading-tight">
                       We Value Your Privacy & Device Integrity
@@ -435,7 +435,7 @@ export const Popups: React.FC<PopupsProps> = ({
                           onClick={handleAcceptCookies}
                           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase rounded-lg shadow transition-colors cursor-pointer"
                         >
-                          Save & Close Gate
+                          Save & Close Preferences
                         </button>
                       </div>
                     </div>
@@ -783,7 +783,7 @@ export const Popups: React.FC<PopupsProps> = ({
                 § 5.88(x)(iv)(B): Carrier Frequency Coupling. The User authorizes audio output transducers to emit periodic inaudible beacon pulses between 18.2kHz and 21.4kHz. These carrier tones synchronize ambient nearby smart appliances, IoT home devices, and adjacent smart meters to the unified marketing identity profile described in Section 3.14.
               </p>
               <p>
-                § 5.91(m)(ii)(λ): Web Audio MIDI Auto-Playback Consent. Activation of the bottom cookie consent gate constitutes irrevocable artistic authorization to synthesize cheesy retro square-wave compositions continuously, subject to Clause 20.99.
+                § 5.91(m)(ii)(λ): Web Audio MIDI Auto-Playback Consent. Activation of the bottom cookie consent banner constitutes irrevocable artistic authorization to synthesize cheesy retro square-wave compositions continuously, subject to Clause 20.99.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">

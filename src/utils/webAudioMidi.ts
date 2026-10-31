@@ -24,71 +24,42 @@ class WebAudioMidiSynthesizer {
   private currentStep: number = 0;
   private masterGain: GainNode | null = null;
   private activeOscs: OscillatorNode[] = [];
+  private outEl: HTMLAudioElement | null = null;
+  private mediaStreamDest: MediaStreamAudioDestinationNode | null = null;
 
-  // Slow tempo: 66 BPM (1 beat = ~909ms)
-  private readonly BPM = 66;
+  // Aloof plodding tempo: 80 BPM
+  private readonly BPM = 80;
 
-  // Rich 44-measure retro synth composition featuring full, half, quarter, and eighth notes
+  // The iconic 19-note Kazumi Totaka Easter egg song ("Totaka's Song" / K.K. Song)
+  // Characterized by an aloof, plodding stroll with quirky offbeat phrasing and staccato footsteps
   private songNotes: SongNote[] = [
-    // Measure 1-4: Grand Opening Theme (Full & Half Notes)
-    { melody: 523.25, bass: 130.81, duration: 'full' },    // C5 / C3 (4 beats)
-    { melody: 659.25, bass: 130.81, duration: 'half' },    // E5 / C3 (2 beats)
-    { melody: 783.99, bass: 196.00, duration: 'quarter' }, // G5 / G3 (1 beat)
-    { melody: 880.00, bass: 220.00, duration: 'quarter' }, // A5 / A3 (1 beat)
+    // Phrase 1: C - C - D - E - D - C - G
+    { melody: 523.25, bass: 130.81, duration: 'quarter' }, // C5 / C3 (plodding step 1)
+    { melody: 523.25, bass: 0,      duration: 'eighth' },  // C5
+    { melody: 587.33, bass: 98.00,  duration: 'eighth' },  // D5 / G2 (plodding step 2)
+    { melody: 659.25, bass: 0,      duration: 'quarter' }, // E5
+    { melody: 587.33, bass: 0,      duration: 'eighth' },  // D5
+    { melody: 523.25, bass: 130.81, duration: 'eighth' },  // C5 / C3
+    { melody: 392.00, bass: 0,      duration: 'quarter' }, // G4
 
-    // Measure 5-8: Melodic Steps & Eighth-Note Flourishes
-    { melody: 783.99, bass: 196.00, duration: 'eighth' },  // G5 (0.5 beats)
-    { melody: 659.25, bass: 164.81, duration: 'eighth' },  // E5 (0.5 beats)
-    { melody: 587.33, bass: 146.83, duration: 'quarter' }, // D5 (1 beat)
-    { melody: 523.25, bass: 130.81, duration: 'half' },    // C5 (2 beats)
-    { melody: 587.33, bass: 196.00, duration: 'quarter' }, // D5 (1 beat)
-    { melody: 659.25, bass: 130.81, duration: 'quarter' }, // E5 (1 beat)
+    // Phrase 2: E - C - G - E - C - G (The aloof descending triad repetitions)
+    { melody: 659.25, bass: 98.00,  duration: 'quarter' }, // E5 / G2
+    { melody: 523.25, bass: 0,      duration: 'quarter' }, // C5
+    { melody: 392.00, bass: 130.81, duration: 'quarter' }, // G4 / C3
+    { melody: 659.25, bass: 0,      duration: 'quarter' }, // E5
+    { melody: 523.25, bass: 98.00,  duration: 'quarter' }, // C5 / G2
+    { melody: 392.00, bass: 0,      duration: 'quarter' }, // G4
 
-    // Measure 9-12: Gentle Melancholy Half & Full Suspension
-    { melody: 783.99, bass: 164.81, duration: 'half' },    // G5 (2 beats)
-    { melody: 659.25, bass: 220.00, duration: 'eighth' },  // E5 (0.5 beats)
-    { melody: 587.33, bass: 174.61, duration: 'eighth' },  // D5 (0.5 beats)
-    { melody: 523.25, bass: 174.61, duration: 'quarter' }, // C5 (1 beat)
-    { melody: 587.33, bass: 196.00, duration: 'full' },    // D5 (4 beats - full sustain)
+    // Phrase 3: D - E - C - D - B - C (The quirky turnaround & resolve)
+    { melody: 587.33, bass: 130.81, duration: 'quarter' }, // D5 / C3
+    { melody: 659.25, bass: 0,      duration: 'quarter' }, // E5
+    { melody: 523.25, bass: 98.00,  duration: 'quarter' }, // C5 / G2
+    { melody: 587.33, bass: 0,      duration: 'quarter' }, // D5
+    { melody: 493.88, bass: 98.00,  duration: 'quarter' }, // B4 / G2
+    { melody: 523.25, bass: 130.81, duration: 'half' },    // C5 / C3 (held resolve)
 
-    // Measure 13-16: Rising Arc to Emotional Apex
-    { melody: 659.25, bass: 220.00, duration: 'half' },    // E5 (2 beats)
-    { melody: 880.00, bass: 220.00, duration: 'quarter' }, // A5 (1 beat)
-    { melody: 987.77, bass: 164.81, duration: 'quarter' }, // B5 (1 beat)
-    { melody: 1046.50, bass: 174.61, duration: 'full' },  // C6 / F3 (4 beats - dramatic full peak)
-
-    // Measure 17-20: Cascading Descent
-    { melody: 987.77, bass: 196.00, duration: 'quarter' }, // B5 (1 beat)
-    { melody: 880.00, bass: 174.61, duration: 'quarter' }, // A5 (1 beat)
-    { melody: 783.99, bass: 164.81, duration: 'half' },    // G5 (2 beats)
-    { melody: 659.25, bass: 130.81, duration: 'eighth' },  // E5 (0.5 beats)
-    { melody: 783.99, bass: 130.81, duration: 'eighth' },  // G5 (0.5 beats)
-    { melody: 880.00, bass: 146.83, duration: 'quarter' }, // A5 (1 beat)
-
-    // Measure 21-24: Thoughtful Bridge
-    { melody: 783.99, bass: 164.81, duration: 'quarter' }, // G5 (1 beat)
-    { melody: 659.25, bass: 174.61, duration: 'half' },    // E5 (2 beats)
-    { melody: 587.33, bass: 196.00, duration: 'quarter' }, // D5 (1 beat)
-    { melody: 523.25, bass: 130.81, duration: 'half' },    // C5 (2 beats)
-    { melody: 0,      bass: 196.00, duration: 'quarter' }, // Rest (1 beat)
-
-    // Measure 25-28: Nostalgic Introspection
-    { melody: 392.00, bass: 130.81, duration: 'eighth' },  // G4 (0.5 beats)
-    { melody: 440.00, bass: 130.81, duration: 'eighth' },  // A4 (0.5 beats)
-    { melody: 523.25, bass: 130.81, duration: 'quarter' }, // C5 (1 beat)
-    { melody: 587.33, bass: 146.83, duration: 'quarter' }, // D5 (1 beat)
-    { melody: 659.25, bass: 164.81, duration: 'half' },    // E5 (2 beats)
-    { melody: 783.99, bass: 196.00, duration: 'half' },    // G5 (2 beats)
-
-    // Measure 29-32: Triumphant Anthem & Turnaround
-    { melody: 880.00, bass: 220.00, duration: 'full' },    // A5 (4 beats - full sustain)
-    { melody: 783.99, bass: 196.00, duration: 'half' },    // G5 (2 beats)
-    { melody: 659.25, bass: 164.81, duration: 'quarter' }, // E5 (1 beat)
-    { melody: 587.33, bass: 174.61, duration: 'quarter' }, // D5 (1 beat)
-    { melody: 523.25, bass: 196.00, duration: 'eighth' },  // C5 (0.5 beats)
-    { melody: 587.33, bass: 196.00, duration: 'eighth' },  // D5 (0.5 beats)
-    { melody: 659.25, bass: 196.00, duration: 'half' },    // E5 (2 beats)
-    { melody: 523.25, bass: 130.81, duration: 'full' },    // C5 (4 beats - peaceful full resolution)
+    // Aloof comical rest before the loop repeats
+    { melody: 0,      bass: 0,      duration: 'quarter' }, // (Rest)
   ];
 
   public hasContext(): boolean {
@@ -97,6 +68,8 @@ class WebAudioMidiSynthesizer {
 
   /**
    * Initializes or resumes the AudioContext SYNCHRONOUSLY within a user interaction.
+   * Routes output through an HTMLAudioElement via createMediaStreamDestination() so
+   * iOS Safari upgrades the audio session from ambient to media playback.
    */
   public ensureAudioContext(): AudioContext | null {
     try {
@@ -106,11 +79,36 @@ class WebAudioMidiSynthesizer {
         this.ctx = new AudioCtx();
         this.masterGain = this.ctx.createGain();
         this.masterGain.gain.value = this.isMasterMuted ? 0 : 0.42;
-        this.masterGain.connect(this.ctx.destination);
+
+        try {
+          if (typeof this.ctx.createMediaStreamDestination === 'function') {
+            const dest = this.ctx.createMediaStreamDestination();
+            this.mediaStreamDest = dest;
+            this.masterGain.connect(dest);
+            this.outEl = new Audio();
+            (this.outEl as any).srcObject = dest.stream;
+            this.outEl.setAttribute('playsinline', '');
+            this.outEl.setAttribute('webkit-playsinline', '');
+          } else {
+            this.masterGain.connect(this.ctx.destination);
+          }
+        } catch (err) {
+          console.warn('MediaStreamDestination fallback to ctx.destination:', err);
+          this.masterGain.connect(this.ctx.destination);
+        }
       }
 
       if (this.ctx.state === 'suspended') {
-        this.ctx.resume().catch(() => {});
+        this.ctx.resume().then(() => {
+          console.log(this.ctx?.state);
+        }).catch(() => {});
+      } else {
+        console.log(this.ctx.state);
+      }
+
+      // Activate playback session on iOS Safari directly within the user gesture
+      if (this.outEl) {
+        this.outEl.play().catch(() => {});
       }
 
       // Hardware wake-up trigger: play an instant 1-sample silent buffer directly in the user gesture
@@ -133,6 +131,12 @@ class WebAudioMidiSynthesizer {
     this.isMasterMuted = muted;
     if (this.masterGain) {
       this.masterGain.gain.value = muted ? 0 : 0.42;
+    }
+    if (this.outEl) {
+      this.outEl.muted = muted;
+      if (!muted) {
+        this.outEl.play().catch(() => {});
+      }
     }
   }
 
@@ -213,45 +217,48 @@ class WebAudioMidiSynthesizer {
 
     try {
       const now = Math.max(this.ctx.currentTime, 0) + 0.02;
-      const soundLength = Math.max(0.1, durationSec * 0.92);
 
-      // Melody voice (Square wave with warm filter decay)
+      // Aloof melody voice (clean, detached staccato square/pulse)
       if (melody > 0) {
         const osc = this.ctx.createOscillator();
         const noteGain = this.ctx.createGain();
 
+        // Staccato articulation for aloof Totaka feel
+        const melodySoundLength = Math.min(0.26, durationSec * 0.72);
+
         osc.type = 'square';
         osc.frequency.setValueAtTime(melody, now);
 
-        // Safe linear ramp (never throws on zero)
-        noteGain.gain.setValueAtTime(0.18, now);
-        noteGain.gain.linearRampToValueAtTime(0.015, now + soundLength);
+        // Punchy attack and fast aloof decay
+        noteGain.gain.setValueAtTime(0.16, now);
+        noteGain.gain.linearRampToValueAtTime(0.005, now + melodySoundLength);
 
         osc.connect(noteGain);
         noteGain.connect(this.masterGain);
 
         osc.start(now);
-        osc.stop(now + soundLength + 0.05);
+        osc.stop(now + melodySoundLength + 0.02);
         this.activeOscs.push(osc);
       }
 
-      // Bass voice (Triangle wave with warm mellow sustain)
+      // Plodding bass voice (short, detached acoustic footstep "bop")
       if (bass > 0) {
         const bassOsc = this.ctx.createOscillator();
         const bassGain = this.ctx.createGain();
 
+        const bassLength = Math.min(0.18, durationSec * 0.5);
+
         bassOsc.type = 'triangle';
         bassOsc.frequency.setValueAtTime(bass, now);
 
-        const bassLength = Math.max(0.12, durationSec * 0.96);
-        bassGain.gain.setValueAtTime(0.24, now);
-        bassGain.gain.linearRampToValueAtTime(0.02, now + bassLength);
+        bassGain.gain.setValueAtTime(0.26, now);
+        bassGain.gain.linearRampToValueAtTime(0.01, now + bassLength);
 
         bassOsc.connect(bassGain);
         bassGain.connect(this.masterGain);
 
         bassOsc.start(now);
-        bassOsc.stop(now + bassLength + 0.05);
+        bassOsc.stop(now + bassLength + 0.03);
         this.activeOscs.push(bassOsc);
       }
     } catch (e) {

@@ -5,12 +5,18 @@
  *  2. Manages its in-memory footprint (allocating/freeing random byte arrays)
  *  3. Manages its IndexedDB footprint (storing/clearing uncompressible random blobs)
  *  4. Sleeps
+ * 
+ * Fleet & Marshal Architecture:
+ * - Each worker is capped at 1024MB.
+ * - Sequential allocation: Worker 0 is filled to 1024MB first, then Worker 1, etc.
+ * - A Marshal monitors the fleet. When an OOM occurs (worker.onerror or memory allocation catch),
+ *   the marshal records the high watermark as the nearest full worker and treats that as the new maximum value.
  */
 
 const WORKER_CODE = `
 let workerId = 0;
 let targetCpu = 0; // 0 to 99
-let targetMemBytes = 0; // in bytes
+let targetMemBytes = 0; // in bytes (max 1024MB per worker)
 let targetStorageBytes = 0; // in bytes
 
 let allocatedMemoryChunks = [];
@@ -50,7 +56,7 @@ function executeCpuBurn(workMs) {
   }
 }
 
-// 2. In-Memory Footprint Management
+// 2. In-Memory Footprint Management (capped at targetMemBytes <= 1024MB)
 function manageMemoryFootprint() {
   const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks
   // If we need more memory
@@ -65,7 +71,13 @@ function manageMemoryFootprint() {
       allocatedMemoryChunks.push(arr);
       currentMemoryBytes += needed;
     } catch (e) {
-      // Memory limit reached
+      // Memory limit / OOM hit inside worker
+      postMessage({
+        type: 'OOM',
+        workerId,
+        currentMemoryBytes,
+        error: String(e),
+      });
       break;
     }
   }
@@ -217,13 +229,27 @@ export class SaturationWorkerPool {
   private workers: Worker[] = [];
   private workerBlobUrl: string | null = null;
   private concurrency: number;
-  private workerStats: Map<number, { memoryBytes: number; storageBytes: number }> = new Map();
+  private workerStats: Map<number, { memoryBytes: number; storageBytes: number; isDead?: boolean }> = new Map();
   private onMetricsCallback?: (metrics: WorkerMetrics) => void;
+  private onHighWatermarkChange?: (newMaxMB: number) => void;
+  private maxMemoryMB: number;
+  private lastCpuPercent: number = 0;
+  private lastTargetMemoryMB: number = 0;
+  private lastTargetStorageMB: number = 0;
 
-  constructor(onMetrics?: (metrics: WorkerMetrics) => void) {
-    const systemConcurrency = typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4;
-    this.concurrency = Math.min(4, Math.max(1, systemConcurrency));
+  constructor(
+    initialMaxMemoryMB: number = 4096,
+    onMetrics?: (metrics: WorkerMetrics) => void,
+    onHighWatermarkChange?: (newMaxMB: number) => void
+  ) {
+    this.maxMemoryMB = Math.max(1024, initialMaxMemoryMB);
     this.onMetricsCallback = onMetrics;
+    this.onHighWatermarkChange = onHighWatermarkChange;
+
+    // Number of 1024MB workers needed to cover system memory, at least 4
+    const neededFleetSize = Math.max(4, Math.ceil(this.maxMemoryMB / 1024));
+    this.concurrency = neededFleetSize;
+
     this.initWorkers();
 
     if (typeof window !== 'undefined') {
@@ -238,51 +264,117 @@ export class SaturationWorkerPool {
       this.workerBlobUrl = URL.createObjectURL(blob);
 
       for (let i = 0; i < this.concurrency; i++) {
-        const worker = new Worker(this.workerBlobUrl);
         const id = i;
-        this.workerStats.set(id, { memoryBytes: 0, storageBytes: 0 });
-
-        worker.onmessage = (e) => {
-          if (e.data.type === 'METRICS') {
-            this.workerStats.set(e.data.workerId, {
-              memoryBytes: e.data.memoryBytes || 0,
-              storageBytes: e.data.storageBytes || 0,
-            });
-            this.emitMetrics();
-          }
-        };
-
-        worker.postMessage({ type: 'INIT', workerId: id });
-        this.workers.push(worker);
+        this.workerStats.set(id, { memoryBytes: 0, storageBytes: 0, isDead: false });
+        this.spawnWorker(id);
       }
     } catch (err) {
       console.warn('Worker initialization fallback', err);
     }
   }
 
-  public setTargets(cpuPercent: number, totalMemoryMB: number, totalStorageMB: number) {
-    const workerCount = Math.max(1, this.workers.length);
-    const clampedCpu = Math.max(0, Math.min(99, cpuPercent));
-    const memBytesPerWorker = Math.floor((totalMemoryMB * 1024 * 1024) / workerCount);
-    const storageBytesPerWorker = Math.floor((totalStorageMB * 1024 * 1024) / workerCount);
+  private spawnWorker(id: number) {
+    if (!this.workerBlobUrl) return;
+    try {
+      const worker = new Worker(this.workerBlobUrl);
 
-    this.workers.forEach((worker) => {
-      worker.postMessage({
-        type: 'UPDATE_TARGETS',
-        cpu: clampedCpu,
-        memoryBytes: memBytesPerWorker,
-        storageBytes: storageBytesPerWorker,
-      });
+      worker.onmessage = (e) => {
+        if (e.data.type === 'METRICS') {
+          const stats = this.workerStats.get(e.data.workerId);
+          if (stats && !stats.isDead) {
+            stats.memoryBytes = e.data.memoryBytes || 0;
+            stats.storageBytes = e.data.storageBytes || 0;
+            this.emitMetrics();
+          }
+        } else if (e.data.type === 'OOM') {
+          // Worker hit out-of-memory exception
+          this.handleWorkerOOM(e.data.workerId);
+        }
+      };
+
+      // Marshal monitoring: catches worker death / system OOM kill
+      worker.onerror = (e) => {
+        console.warn(`[Marshal] Worker ${id} died from OOM or uncaught error`, e);
+        this.handleWorkerOOM(id);
+      };
+
+      worker.postMessage({ type: 'INIT', workerId: id });
+      this.workers[id] = worker;
+    } catch (err) {
+      console.warn(`Failed to spawn worker ${id}`, err);
+    }
+  }
+
+  /**
+   * Marshal OOM handler:
+   * When worker `workerIndex` dies from an OOM error, record the high watermark
+   * as the nearest full worker (each worker holds up to 1024MB).
+   * E.g. If worker 2 dies while allocating, workers 0 and 1 were fully filled = 2048MB.
+   */
+  private handleWorkerOOM(workerIndex: number) {
+    const stats = this.workerStats.get(workerIndex);
+    if (stats) stats.isDead = true;
+
+    // Calculate nearest full worker watermark
+    const nearestFullWorkerMB = Math.max(0, workerIndex * 1024);
+    console.warn(`[Marshal] OOM triggered at worker ${workerIndex}. High watermark clamped to ${nearestFullWorkerMB} MB`);
+
+    this.maxMemoryMB = nearestFullWorkerMB;
+
+    if (this.onHighWatermarkChange) {
+      this.onHighWatermarkChange(this.maxMemoryMB);
+    }
+
+    // Reapply targets clamped to new high watermark
+    this.setTargets(this.lastCpuPercent, Math.min(this.lastTargetMemoryMB, this.maxMemoryMB), this.lastTargetStorageMB);
+  }
+
+  /**
+   * Sequential worker filling:
+   * Worker 0 is filled up to 1024MB, then Worker 1, etc.
+   */
+  public setTargets(cpuPercent: number, totalMemoryMB: number, totalStorageMB: number) {
+    this.lastCpuPercent = cpuPercent;
+    this.lastTargetMemoryMB = totalMemoryMB;
+    this.lastTargetStorageMB = totalStorageMB;
+
+    const clampedMemoryMB = Math.min(totalMemoryMB, this.maxMemoryMB);
+    let remainingMemMB = clampedMemoryMB;
+    const clampedCpu = Math.max(0, Math.min(99, cpuPercent));
+    const storageBytesPerWorker = Math.floor((totalStorageMB * 1024 * 1024) / Math.max(1, this.workers.length));
+
+    this.workers.forEach((worker, index) => {
+      if (!worker) return;
+      const stats = this.workerStats.get(index);
+      if (stats?.isDead) return;
+
+      const allocMB = Math.min(1024, Math.max(0, remainingMemMB));
+      remainingMemMB -= allocMB;
+      const memBytes = allocMB * 1024 * 1024;
+
+      try {
+        worker.postMessage({
+          type: 'UPDATE_TARGETS',
+          cpu: clampedCpu,
+          memoryBytes: memBytes,
+          storageBytes: storageBytesPerWorker,
+        });
+      } catch (err) {
+        console.warn(`Failed to postMessage to worker ${index}`, err);
+      }
     });
   }
 
   public emergencyReset() {
     this.workers.forEach((worker) => {
-      worker.postMessage({ type: 'RESET' });
+      try {
+        worker?.postMessage({ type: 'RESET' });
+      } catch (e) {}
     });
     this.workerStats.forEach((val) => {
       val.memoryBytes = 0;
       val.storageBytes = 0;
+      val.isDead = false;
     });
     this.emitMetrics();
   }
@@ -291,21 +383,33 @@ export class SaturationWorkerPool {
     if (!this.onMetricsCallback) return;
     let totalMem = 0;
     let totalStorage = 0;
+    let active = 0;
     this.workerStats.forEach((v) => {
-      totalMem += v.memoryBytes;
-      totalStorage += v.storageBytes;
+      if (!v.isDead) {
+        totalMem += v.memoryBytes;
+        totalStorage += v.storageBytes;
+        active++;
+      }
     });
     this.onMetricsCallback({
       totalMemoryBytes: totalMem,
       totalStorageBytes: totalStorage,
-      activeWorkers: this.workers.length,
+      activeWorkers: active,
       concurrencyLimit: this.concurrency,
     });
   }
 
+  public getMaxMemoryMB(): number {
+    return this.maxMemoryMB;
+  }
+
   public terminate() {
     this.emergencyReset();
-    this.workers.forEach((w) => w.terminate());
+    this.workers.forEach((w) => {
+      try {
+        w?.terminate();
+      } catch (e) {}
+    });
     this.workers = [];
     if (this.workerBlobUrl) {
       URL.revokeObjectURL(this.workerBlobUrl);

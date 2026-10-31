@@ -12,10 +12,50 @@ import { Popups } from './components/Popups.tsx';
 import { SaturationWorkerPool, WorkerMetrics } from './utils/workerManager.ts';
 
 function AppContent() {
+  // Query system memory via deviceMemory (GB -> MB) with 4096MB fallback
+  const initialSystemMemoryMB = typeof navigator !== 'undefined' && (navigator as any).deviceMemory
+    ? (navigator as any).deviceMemory * 1024
+    : 4096;
+
+  const [maxMemoryMB, setMaxMemoryMB] = useState<number>(initialSystemMemoryMB);
+
   // Resource saturation targets
   const [cpu, setCpu] = useState<number>(0); // 0 to 99%
-  const [memoryMB, setMemoryMB] = useState<number>(0); // 0 to 4096 MB
+  const [memoryMB, setMemoryMB] = useState<number>(0); // 0 to maxMemoryMB
   const [storageMB, setStorageMB] = useState<number>(0); // 0 to 4096 MB
+
+  // Slower modern sans-serif web fonts injection:
+  // Timer activates ONLY once the user starts scrolling, loading slowly to trigger extreme layout shifts
+  const [fontsLoaded, setFontsLoaded] = useState<boolean>(false);
+  const fontTimerActivatedRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    const handleScrollForFonts = () => {
+      if (fontTimerActivatedRef.current) return;
+      fontTimerActivatedRef.current = true;
+
+      // Slow 6-second countdown after user begins scrolling
+      setTimeout(() => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href =
+          'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,600;0,800;1,400&family=Space+Grotesk:wght@600;700&display=swap';
+        link.onload = () => {
+          setFontsLoaded(true);
+          const style = document.createElement('style');
+          style.textContent = `
+            body, p, li, span:not([class*="font-"]) { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important; }
+            h1, h2, h3, h4, h5, h6 { font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif !important; letter-spacing: -0.025em; }
+          `;
+          document.head.appendChild(style);
+        };
+        document.head.appendChild(link);
+      }, 6000);
+    };
+
+    window.addEventListener('scroll', handleScrollForFonts, { passive: true });
+    return () => window.removeEventListener('scroll', handleScrollForFonts);
+  }, []);
 
   // Audio controller
   const { isMidiPlaying, toggleMidi, resumeAudioContext } = useAudioController();
@@ -29,7 +69,7 @@ function AppContent() {
     totalMemoryBytes: 0,
     totalStorageBytes: 0,
     activeWorkers: 0,
-    concurrencyLimit: typeof navigator !== 'undefined' ? Math.min(4, navigator.hardwareConcurrency || 4) : 4,
+    concurrencyLimit: Math.max(4, Math.ceil(initialSystemMemoryMB / 1024)),
   });
 
   // Support chat external trigger
@@ -38,20 +78,27 @@ function AppContent() {
   // Unskippable 10s ad state
   const [showUnskippableAd, setShowUnskippableAd] = useState<boolean>(false);
 
-  // Worker Pool reference
+  // Worker Pool reference with marshal
   const poolRef = useRef<SaturationWorkerPool | null>(null);
 
-  // Initialize saturation worker pool
+  // Initialize saturation worker pool with Marshal and OOM high watermark listener
   useEffect(() => {
-    const pool = new SaturationWorkerPool((metrics) => {
-      setWorkerMetrics(metrics);
-    });
+    const pool = new SaturationWorkerPool(
+      initialSystemMemoryMB,
+      (metrics) => {
+        setWorkerMetrics(metrics);
+      },
+      (newMaxMB) => {
+        setMaxMemoryMB(newMaxMB);
+        setMemoryMB((prev) => Math.min(prev, newMaxMB));
+      }
+    );
     poolRef.current = pool;
 
     return () => {
       pool.terminate();
     };
-  }, []);
+  }, [initialSystemMemoryMB]);
 
   // Sync targets to web workers
   useEffect(() => {
@@ -78,7 +125,7 @@ function AppContent() {
         if (choice === 0) {
           setCpu((prev) => Math.min(99, prev + 3));
         } else if (choice === 1) {
-          setMemoryMB((prev) => Math.min(4096, prev + 128));
+          setMemoryMB((prev) => Math.min(maxMemoryMB, prev + 128));
         } else {
           setStorageMB((prev) => Math.min(4096, prev + 128));
         }
@@ -87,7 +134,7 @@ function AppContent() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [hasScrolled]);
+  }, [hasScrolled, maxMemoryMB]);
 
   // Emergency Stop / Reset
   const handleEmergencyStop = () => {
@@ -103,7 +150,11 @@ function AppContent() {
   const canChatStart = initialPopupsCleared && hasScrolled;
 
   return (
-    <div className="relative min-h-screen bg-neutral-100 text-neutral-900 selection:bg-amber-200">
+    <div
+      className={`relative min-h-screen bg-neutral-100 text-neutral-900 selection:bg-amber-200 transition-all ${
+        fontsLoaded ? 'delayed-fonts-applied' : ''
+      }`}
+    >
       {/* 1. CPU Burning Screen Edge Effect */}
       <CpuBurningEffect cpuPercent={cpu} />
 
@@ -197,6 +248,7 @@ function AppContent() {
         cpu={cpu}
         memoryMB={memoryMB}
         storageMB={storageMB}
+        maxMemoryMB={maxMemoryMB}
         onCpuChange={setCpu}
         onMemoryChange={setMemoryMB}
         onStorageChange={setStorageMB}
