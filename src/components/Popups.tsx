@@ -19,6 +19,7 @@ interface PopupsProps {
   onGrantCamera?: (stream: MediaStream) => void;
   onInitialPopupsCleared?: () => void;
   onCookieAccepted?: () => void;
+  triggerAdBlockNoticeCount?: number;
 }
 
 // 8 Mandatory Cookie Categories as specified
@@ -73,32 +74,50 @@ const COOKIE_CATEGORIES = [
   },
 ];
 
+// Helper functions for session persistence
+const isSessionCookieAccepted = () => {
+  return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_cookie_accepted') === 'true';
+};
+const isSessionPermissionDismissed = () => {
+  return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_permission_dismissed') === 'true';
+};
+const isSessionNewsletterDismissed = () => {
+  return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_newsletter_dismissed') === 'true';
+};
+
 export const Popups: React.FC<PopupsProps> = ({
   showUnskippableAd,
   onCloseUnskippableAd,
   onGrantCamera,
   onInitialPopupsCleared,
   onCookieAccepted,
+  triggerAdBlockNoticeCount = 0,
 }) => {
-  const { setMidiPlaying, resumeAudioContext, playSwoosh } = useAudioController();
+  const { setMidiPlaying, resumeAudioContext, playSwoosh, playBuzzer } = useAudioController();
 
-  // 1. Initial banner sequencing:
-  // Newsletter and Permissions appear immediately!
-  const [showNewsletter, setShowNewsletter] = useState(true);
-  const [newsletterDismissed, setNewsletterDismissed] = useState(false);
+  // 1. Initial banner sequencing with session storage memory:
+  // Once closed or accepted, they will NOT appear again across article switches in this session!
+  const [showNewsletter, setShowNewsletter] = useState(() => !isSessionNewsletterDismissed());
+  const [newsletterDismissed, setNewsletterDismissed] = useState(() => isSessionNewsletterDismissed());
 
-  const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
-  const [permissionDismissed, setPermissionDismissed] = useState(false);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(() => !isSessionPermissionDismissed());
+  const [permissionDismissed, setPermissionDismissed] = useState(() => isSessionPermissionDismissed());
 
   // 2. Cookie blocking overlay:
-  // MUST block interaction with the other two banners even before the cookie banner appears!
-  const [isCookieBlockerActive, setIsCookieBlockerActive] = useState(true);
-  // Cookie banner itself appears after a short delay (1400ms)
+  const [isCookieBlockerActive, setIsCookieBlockerActive] = useState(() => !isSessionCookieAccepted());
   const [showCookieModal, setShowCookieModal] = useState(false);
-  const [cookieAccepted, setCookieAccepted] = useState(false);
+  const [cookieAccepted, setCookieAccepted] = useState(() => isSessionCookieAccepted());
 
-  // Ad Blocker popup (triggers after cookie acceptance)
+  // Ad Blocker popup (can be triggered on page/article transitions)
   const [showAdBlockerModal, setShowAdBlockerModal] = useState(false);
+
+  // Trigger ad blocker notice on article transition if requested
+  useEffect(() => {
+    if (triggerAdBlockNoticeCount > 0) {
+      setShowAdBlockerModal(true);
+      playSwoosh();
+    }
+  }, [triggerAdBlockNoticeCount]);
 
   // Expanded cookie categories view in bottom banner
   const [showCategoriesDrawer, setShowCategoriesDrawer] = useState(false);
@@ -135,6 +154,7 @@ export const Popups: React.FC<PopupsProps> = ({
 
   // Delay before cookie banner visually animates in at the bottom (while blocker is active immediately!)
   useEffect(() => {
+    if (isSessionCookieAccepted()) return;
     const timer = setTimeout(() => {
       setShowCookieModal(true);
     }, 1400);
@@ -145,6 +165,10 @@ export const Popups: React.FC<PopupsProps> = ({
   // When cookie popup is accepted: starts audio synth and releases screen interaction blocker
   const handleAcceptCookies = () => {
     triggerAudioStart();
+
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('rbw_cookie_accepted', 'true');
+    }
 
     setIsCookieBlockerActive(false);
     setShowCookieModal(false);
@@ -163,12 +187,18 @@ export const Popups: React.FC<PopupsProps> = ({
 
   const handleCloseNewsletter = () => {
     triggerAudioStart();
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('rbw_newsletter_dismissed', 'true');
+    }
     setShowNewsletter(false);
     setNewsletterDismissed(true);
   };
 
   const handleClosePermissions = () => {
     triggerAudioStart();
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('rbw_permission_dismissed', 'true');
+    }
     setShowPermissionPrompt(false);
     setPermissionDismissed(true);
   };
@@ -929,44 +959,132 @@ export const Popups: React.FC<PopupsProps> = ({
 
       {/* 
         ========================================================================
-        8. Unskippable 10-Second Countdown Modal on "Continue Reading"
+        8. Full Page Ad Takeover with Floating Corner Countdown
         ========================================================================
       */}
       {showUnskippableAd && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-neutral-900 border-2 border-amber-500 rounded-2xl p-6 text-center text-white shadow-2xl relative">
-            <div className="inline-block bg-amber-500 text-black text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider mb-4">
-              SPONSORED INTERRUPT
+        <div className="fixed inset-0 z-50 bg-neutral-950 text-white overflow-y-auto selection:bg-amber-400 selection:text-black animate-in fade-in">
+          {/* Floating Countdown Widget in the Corner */}
+          <div className="fixed top-5 right-5 z-60 bg-neutral-900/95 backdrop-blur-md border-2 border-amber-400 p-3 sm:p-4 rounded-2xl shadow-2xl flex items-center gap-3 select-none">
+            <div
+              className={`w-10 h-10 rounded-full font-mono font-black flex items-center justify-center text-lg shadow-md transition-all ${
+                countdown > 0
+                  ? 'bg-amber-400 text-black animate-pulse'
+                  : 'bg-emerald-500 text-black'
+              }`}
+            >
+              {countdown > 0 ? countdown : '✓'}
             </div>
-            <h3 className="text-xl font-bold mb-2">Support Independent Journalism</h3>
-            <p className="text-xs text-neutral-300 mb-6 leading-relaxed">
-              Your continued reading requires 10 seconds of verified cognitive attention. Please keep your cursor within the viewport to maintain transmission synchronization.
-            </p>
-
-            {/* Countdown Display */}
-            <div className="my-4 flex flex-col items-center">
-              <div className="w-20 h-20 rounded-full border-4 border-amber-500 flex items-center justify-center font-mono font-black text-3xl text-amber-400 bg-amber-950/40">
-                {countdown}
-              </div>
-              <span className="text-xs font-mono text-neutral-400 mt-2">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-amber-400">
+                {countdown > 0 ? 'Sponsored Transmission' : 'Transmission Ready'}
+              </p>
+              <p className="text-[10px] font-mono text-neutral-400">
                 {countdown > 0
-                  ? `Unskippable ad playing (${countdown}s remaining)...`
-                  : 'Thank you for your patience!'}
-              </span>
+                  ? `Ad closes in ${countdown}s...`
+                  : 'Article is unlocked!'}
+              </p>
             </div>
-
-            {/* Close Button: Disabled during countdown */}
             <button
               onClick={onCloseUnskippableAd}
               disabled={countdown > 0}
-              className={`w-full py-3 rounded-xl font-bold text-sm tracking-wide transition-all ${
+              className={`ml-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                 countdown > 0
                   ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700'
-                  : 'bg-emerald-500 hover:bg-emerald-400 text-black cursor-pointer shadow-lg animate-bounce'
+                  : 'bg-emerald-500 hover:bg-emerald-400 text-black cursor-pointer shadow-xl animate-bounce'
               }`}
             >
-              {countdown > 0 ? `Please wait ${countdown}s...` : 'Continue to Full Article'}
+              <span>{countdown > 0 ? `Wait ${countdown}s` : 'Skip to Article'}</span>
+              {countdown === 0 && <X className="w-4 h-4" />}
             </button>
+          </div>
+
+          {/* Full Page Advertisement Takeover Layout */}
+          <div className="min-h-screen max-w-5xl mx-auto px-4 py-16 flex flex-col justify-center">
+            {/* Top Eyebrow Banner */}
+            <div className="text-center mb-6">
+              <span className="inline-block bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest mb-3">
+                SPONSORED COGNITIVE SYNCHRONIZATION • SPECIAL REPORT
+              </span>
+              <p className="text-xs font-mono text-neutral-400">
+                ADVERTISEMENT #836-B • AUTHORIZED BY THE GLOBAL AFFILIATE CONSORTIUM
+              </p>
+            </div>
+
+            {/* Giant Attention-Grabbing Hero */}
+            <div className="bg-gradient-to-br from-neutral-900 via-neutral-900 to-amber-950/40 border-2 border-amber-500/60 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+              <div className="absolute -top-12 -right-12 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="inline-block bg-red-600 text-white font-black text-xs px-3 py-1 rounded-md uppercase tracking-wider mb-4 animate-pulse">
+                BREAKING LEAK: DO NOT SHARE THIS PAGE
+              </div>
+
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight mb-4 text-white">
+                THE 3-MINUTE CHRONO-ARBITRAGE SYSTEM GENERATING <span className="text-amber-400 underline decoration-amber-500 underline-offset-8">$4,280/DAY</span> FROM HOME
+              </h1>
+
+              <p className="text-base sm:text-lg text-neutral-300 font-medium max-w-3xl mb-8 leading-relaxed">
+                Institutional trading desks have secretly extracted billions using temporal micro-discrepancies between Monday and Tuesday. A leaked Python script is now democratizing this exploit for everyday citizens.
+              </p>
+
+              {/* Graphic Highlight Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div className="bg-black/60 border border-amber-500/30 rounded-2xl p-4 text-center">
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">$1,248,500.00</div>
+                  <div className="text-xs text-neutral-400 mt-1 uppercase font-bold tracking-wider">Total Syndicate Payouts Today</div>
+                </div>
+                <div className="bg-black/60 border border-amber-500/30 rounded-2xl p-4 text-center">
+                  <div className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">99.4%</div>
+                  <div className="text-xs text-neutral-400 mt-1 uppercase font-bold tracking-wider">Algorithmic Win Rate</div>
+                </div>
+                <div className="bg-black/60 border border-amber-500/30 rounded-2xl p-4 text-center">
+                  <div className="text-2xl sm:text-3xl font-black text-blue-400 font-mono">0 SECONDS</div>
+                  <div className="text-xs text-neutral-400 mt-1 uppercase font-bold tracking-wider">Setup Required</div>
+                </div>
+              </div>
+
+              {/* Fake Interactive Claim Box */}
+              <div className="bg-amber-950/30 border border-amber-500/40 rounded-2xl p-6 text-center">
+                <h3 className="text-lg font-bold text-amber-200 mb-2">
+                  Verify Allocation Availability in Your Region
+                </h3>
+                <p className="text-xs text-neutral-300 mb-4 max-w-xl mx-auto">
+                  Only 3 access tokens remain for this IP range. Click below to verify hardware eligibility before the window collapses.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => playBuzzer()}
+                    className="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm uppercase tracking-wider rounded-xl shadow-lg cursor-pointer active:scale-95 transition-all"
+                  >
+                    ⚡ CLAIM INSTANT ACCESS TOKEN (FREE)
+                  </button>
+                  <span className="text-xs font-mono text-amber-400/80">
+                    Spots remaining: 2 / 100
+                  </span>
+                </div>
+              </div>
+
+              {/* Testimonials */}
+              <div className="mt-8 pt-6 border-t border-neutral-800 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-black/40 border border-neutral-800 rounded-xl p-4">
+                  <p className="text-xs italic text-neutral-300 mb-2">
+                    "I thought this was a hoax until my bank account credited $12,400 the next morning. It completely changed my view on temporal physics."
+                  </p>
+                  <p className="text-[11px] font-bold text-amber-400">— Arthur K., Former Logistics Coordinator</p>
+                </div>
+                <div className="bg-black/40 border border-neutral-800 rounded-xl p-4">
+                  <p className="text-xs italic text-neutral-300 mb-2">
+                    "The easiest side-income on the internet. Turn it on, let the background workers sync, and collect daily profits."
+                  </p>
+                  <p className="text-[11px] font-bold text-amber-400">— Elena R., Certified Hardware Analyst</p>
+                </div>
+              </div>
+
+              {/* Bottom Notice */}
+              <div className="mt-6 text-center text-[10px] text-neutral-500 font-mono">
+                SEC / FTC Disclaimer: Past performance does not guarantee future temporal outcomes. All claims validated by syndicate partner telemetry.
+              </div>
+            </div>
           </div>
         </div>
       )}

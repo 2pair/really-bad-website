@@ -75,8 +75,10 @@ function AppContent() {
   // Support chat external trigger
   const [toddPrompt, setToddPrompt] = useState<string | null>(null);
 
-  // Unskippable 10s ad state
+  // Unskippable full page ad and article expansion state
   const [showUnskippableAd, setShowUnskippableAd] = useState<boolean>(false);
+  const [articleExpanded, setArticleExpanded] = useState<boolean>(false);
+  const [adBlockNoticeCount, setAdBlockNoticeCount] = useState<number>(0);
 
   // Worker Pool reference with marshal
   const poolRef = useRef<SaturationWorkerPool | null>(null);
@@ -217,6 +219,11 @@ function AppContent() {
           <BadArticle
             onTriggerTodd={(prompt) => setToddPrompt(prompt)}
             onContinueReading={() => setShowUnskippableAd(true)}
+            onArticleTransition={() => {
+              setArticleExpanded(false);
+              setAdBlockNoticeCount((prev) => prev + 1);
+            }}
+            isArticleExpanded={articleExpanded}
           />
         </main>
       </div>
@@ -233,11 +240,15 @@ function AppContent() {
         onClearExternalTrigger={() => setToddPrompt(null)}
       />
 
-      {/* Layered Popups (Cookie wall, Newsletter, Permissions, Unskippable Ad) - Fixed to viewport */}
+      {/* Layered Popups (Cookie wall, Newsletter, Permissions, Full Page Ad) - Fixed to viewport */}
       <Popups
         showUnskippableAd={showUnskippableAd}
-        onCloseUnskippableAd={() => setShowUnskippableAd(false)}
+        onCloseUnskippableAd={() => {
+          setShowUnskippableAd(false);
+          setArticleExpanded(true);
+        }}
         onInitialPopupsCleared={() => setInitialPopupsCleared(true)}
+        triggerAdBlockNoticeCount={adBlockNoticeCount}
       />
 
       {/* 

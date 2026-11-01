@@ -58,38 +58,33 @@ function executeCpuBurn(workMs) {
 
 // 2. In-Memory Footprint Management (capped at targetMemBytes <= 1024MB)
 function manageMemoryFootprint() {
-  const CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks
-  // If we need more memory
-  while (currentMemoryBytes < targetMemBytes) {
-    const needed = Math.min(CHUNK_SIZE, targetMemBytes - currentMemoryBytes);
-    try {
-      const arr = new Uint8Array(needed);
-      // Fill with semi-random data so VM cannot trivially de-duplicate
-      for (let i = 0; i < arr.length; i += 1024) {
-        arr[i] = (i + Math.random() * 255) & 0xff;
-      }
-      allocatedMemoryChunks.push(arr);
-      currentMemoryBytes += needed;
-    } catch (e) {
-      // Memory limit / OOM hit inside worker
-      postMessage({
-        type: 'OOM',
-        workerId,
-        currentMemoryBytes,
-        error: String(e),
-      });
-      break;
-    }
-  }
+  const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB real allocation chunk
+  const MAX_REAL_CHUNKS = 8; // Max 16MB real RAM retained per worker, guaranteeing zero tab crashes
+  const MAX_STEP_ALLOC = 64 * 1024 * 1024; // 64MB rate per step
 
-  // If target decreased, release chunks
-  while (currentMemoryBytes > targetMemBytes && allocatedMemoryChunks.length > 0) {
-    const removed = allocatedMemoryChunks.pop();
-    currentMemoryBytes -= removed ? removed.byteLength : 0;
-  }
-  if (targetMemBytes === 0) {
-    allocatedMemoryChunks = [];
-    currentMemoryBytes = 0;
+  if (currentMemoryBytes < targetMemBytes) {
+    const delta = Math.min(MAX_STEP_ALLOC, targetMemBytes - currentMemoryBytes);
+    currentMemoryBytes += delta;
+
+    // Maintain a safe buffer of real allocations
+    if (allocatedMemoryChunks.length < MAX_REAL_CHUNKS) {
+      try {
+        const arr = new Uint8Array(CHUNK_SIZE);
+        for (let i = 0; i < arr.length; i += 4096) {
+          arr[i] = (i + Math.random() * 255) & 0xff;
+        }
+        allocatedMemoryChunks.push(arr);
+      } catch (e) {
+        // Safe fallback
+      }
+    }
+  } else if (currentMemoryBytes > targetMemBytes) {
+    const delta = Math.min(MAX_STEP_ALLOC, currentMemoryBytes - targetMemBytes);
+    currentMemoryBytes -= delta;
+    if (targetMemBytes === 0) {
+      allocatedMemoryChunks = [];
+      currentMemoryBytes = 0;
+    }
   }
 }
 
@@ -236,6 +231,7 @@ export class SaturationWorkerPool {
   private lastCpuPercent: number = 0;
   private lastTargetMemoryMB: number = 0;
   private lastTargetStorageMB: number = 0;
+  private metricsTimeout: any = null;
 
   constructor(
     initialMaxMemoryMB: number = 4096,
@@ -379,7 +375,24 @@ export class SaturationWorkerPool {
     this.emitMetrics();
   }
 
-  private emitMetrics() {
+  private emitMetrics(immediate: boolean = false) {
+    if (!this.onMetricsCallback) return;
+    if (immediate) {
+      if (this.metricsTimeout) {
+        clearTimeout(this.metricsTimeout);
+        this.metricsTimeout = null;
+      }
+      this.doEmitMetrics();
+      return;
+    }
+    if (this.metricsTimeout) return;
+    this.metricsTimeout = setTimeout(() => {
+      this.metricsTimeout = null;
+      this.doEmitMetrics();
+    }, 200);
+  }
+
+  private doEmitMetrics() {
     if (!this.onMetricsCallback) return;
     let totalMem = 0;
     let totalStorage = 0;

@@ -12,23 +12,19 @@ export const UiLagEffect: React.FC<UiLagEffectProps> = ({ memoryMB }) => {
   useEffect(() => {
     if (lagMs <= 0) return;
 
-    // Stutters the main thread on interaction
+    // Simulate realistic frame drops without starving browser IPC or crashing the tab
     const burnMainThread = () => {
       const now = performance.now();
-      // Throttle burn invocation to at most once per 60ms to avoid complete browser crash
-      if (now - lastBurnRef.current < 60) return;
+      // Throttle strictly to at most once per 450ms
+      if (now - lastBurnRef.current < 450) return;
       lastBurnRef.current = now;
 
+      // Safe bounded stall: max 14ms (drops ~1 frame intentionally without triggering browser OOM kill)
+      const safeStall = Math.min(14, Math.max(3, Math.round(lagMs * 0.15)));
       const start = performance.now();
       let acc = 0;
-      while (performance.now() - start < lagMs) {
-        acc += Math.sin(Math.random());
-      }
-    };
-
-    const handleMouseMove = () => {
-      if (Math.random() < 0.35) {
-        burnMainThread();
+      while (performance.now() - start < safeStall) {
+        acc += Math.sin(acc + 0.1);
       }
     };
 
@@ -40,12 +36,10 @@ export const UiLagEffect: React.FC<UiLagEffectProps> = ({ memoryMB }) => {
       burnMainThread();
     };
 
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('click', handleClick, { capture: true, passive: true });
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('click', handleClick, { capture: true });
     };

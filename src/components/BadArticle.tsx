@@ -18,11 +18,15 @@ import articleChartImg from '../assets/images/article_chart_1793320711165.jpg';
 interface BadArticleProps {
   onTriggerTodd: (prompt: string) => void;
   onContinueReading: () => void;
+  onArticleTransition?: () => void;
+  isArticleExpanded?: boolean;
 }
 
 export const BadArticle: React.FC<BadArticleProps> = ({
   onTriggerTodd,
   onContinueReading,
+  onArticleTransition,
+  isArticleExpanded,
 }) => {
   const { playBuzzer, playSwoosh, resumeAudioContext } = useAudioController();
 
@@ -92,6 +96,7 @@ export const BadArticle: React.FC<BadArticleProps> = ({
     resumeAudioContext();
     playSwoosh();
     setActiveArticleId(articleId);
+    onArticleTransition?.();
     // Scroll back to top of article container
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -225,8 +230,8 @@ export const BadArticle: React.FC<BadArticleProps> = ({
         {/* Middle Scam Ad Banner */}
         <ScamAds position="mid" />
 
-        {/* Scientific Chart Image: loads after delay without specified dimensions */}
-        {chartImageLoaded && (
+        {/* Scientific Chart Image: Figure 2 only displays on the relevant monday-tuesday article */}
+        {chartImageLoaded && currentArticle.id === 'monday-tuesday' && (
           <div className="my-6 border border-neutral-300 rounded-2xl overflow-hidden shadow-lg animate-in fade-in">
             {/* No width/height in HTML to maximize layout shift */}
             <img
@@ -310,8 +315,8 @@ export const BadArticle: React.FC<BadArticleProps> = ({
           </div>
         </div>
 
-        {/* Continue Reading Button -> triggers unskippable 10s countdown ad! */}
-        {!articleExpanded ? (
+        {/* Continue Reading Button -> triggers full page takeover ad with countdown */}
+        {!(isArticleExpanded ?? articleExpanded) ? (
           <div className="my-8 p-8 bg-gradient-to-b from-transparent to-neutral-100 border-b border-neutral-300 text-center font-sans">
             <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider mb-3">
               [ 62% OF ARTICLE REMAINING • PREMIUM RESEARCH ACCESS ]
@@ -319,7 +324,6 @@ export const BadArticle: React.FC<BadArticleProps> = ({
             <button
               onClick={() => {
                 onContinueReading();
-                setArticleExpanded(true);
               }}
               className="px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm uppercase tracking-wider rounded-2xl shadow-xl hover:shadow-emerald-500/30 transition-all cursor-pointer animate-pulse"
             >

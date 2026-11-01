@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, VolumeX, X, SkipForward } from 'lucide-react';
 import { useAudioController } from '../context/AudioControllerContext.tsx';
+import { resolvePublicAsset } from '../utils/assetUrl.ts';
 
 const SCAM_VIDEOS = [
   {
@@ -92,6 +93,7 @@ export const StickyVideo: React.FC = () => {
   };
 
   const currentVideo = SCAM_VIDEOS[currentVideoIndex];
+  const videoSourceUrl = resolvePublicAsset(currentVideo.src);
 
   // Try to play when source changes
   useEffect(() => {
@@ -106,8 +108,8 @@ export const StickyVideo: React.FC = () => {
       {/* Real HTML5 Video element */}
       <video
         ref={videoRef}
-        key={currentVideo.src}
-        src={currentVideo.src}
+        key={videoSourceUrl}
+        src={videoSourceUrl}
         autoPlay
         playsInline
         muted={!isVideoUnmuted}
