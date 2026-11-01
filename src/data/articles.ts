@@ -1,13 +1,38 @@
+import vancePortrait from '../assets/images/portrait_percival_vance_1793549194041.jpg';
+import ingridPortrait from '../assets/images/portrait_ingrid_holtz_1793549205065.jpg';
+import finchleyPortrait from '../assets/images/portrait_alistair_finchley_1793549216046.jpg';
+import sterlingPortrait from '../assets/images/portrait_eleanor_sterling_1793549227366.jpg';
+import kriegerPortrait from '../assets/images/portrait_wolfgang_krieger_1793549240172.jpg';
+
+import vanceDiagram from '../assets/images/article_chart_1793320711165.jpg';
+import microwaveDiagram from '../assets/images/diagram_microwave_spectrum_1793549251709.jpg';
+import gutFloraDiagram from '../assets/images/diagram_gut_flora_packets_1793549264086.jpg';
+import caliperDiagram from '../assets/images/diagram_metric_caliper_1793549275882.jpg';
+import sleepDiagram from '../assets/images/diagram_inversion_sleep_1793549287881.jpg';
+
+export interface ArticleAuthor {
+  name: string;
+  title: string;
+  avatarText: string;
+  portrait: string;
+  bio: string;
+  credentials: string;
+}
+
+export interface ArticleFigure {
+  tag: string;
+  title: string;
+  subtitle: string;
+  caption: string;
+  image: string;
+}
+
 export interface ArticleData {
   id: string;
   category: string;
   title: string;
   subtitle: string;
-  author: {
-    name: string;
-    title: string;
-    avatarText: string;
-  };
+  author: ArticleAuthor;
   readTime: string;
   date: string;
   firstParagraph: string;
@@ -16,12 +41,7 @@ export interface ArticleData {
     text: string;
   };
   secondParagraph: string;
-  figure: {
-    tag: string;
-    title: string;
-    subtitle: string;
-    caption: string;
-  };
+  figure: ArticleFigure;
   thirdParagraph: string;
   quote: {
     text: string;
@@ -42,6 +62,9 @@ export const ARTICLES: ArticleData[] = [
       name: 'Dr. Percival Vance, Ph.D.',
       title: 'Senior Fellow, Institute of Inconvenient Epistemology',
       avatarText: 'Dr. P',
+      portrait: vancePortrait,
+      credentials: 'Elected Corresponding Member, Swiss Chrono-Cartographic Collegium (Hon.)',
+      bio: 'Dr. Percival Vance has spent twenty-seven years investigating anomalies in bureaucratic timekeeping, Gregorian papal errors, and weekly cognitive dysphoria. He previously taught theoretical calendar mechanics at the University of East Anglia before founding the Institute of Inconvenient Epistemology in 2011. He refuses to wear digital wristwatches.',
     },
     readTime: '8 min read',
     date: 'October 29, 2026',
@@ -55,7 +78,8 @@ export const ARTICLES: ArticleData[] = [
       tag: 'FIGURE 1.0 • BIOMETRIC SYNCHRONIZATION',
       title: 'THE CIRCADIAN DISSOCIATION INDEX OVER 7 DAYS',
       subtitle: 'Notice the parabolic spike precisely at 09:00 AM standard local time.',
-      caption: 'Fig 1.0 — Delayed visual transmission rendered without CSS aspect-ratio containment.',
+      caption: 'Fig 1.0 — Longitudinal circadian drift observed across 4,000 corporate telemetry test subjects.',
+      image: vanceDiagram,
     },
     thirdParagraph: 'Consider the somatic experience of attempting to open an email spreadsheet at 9:02 AM. Your ocular muscles tense. Your prefrontal cortex searches for emotional equilibrium, yet encounters an insurmountable synthetic resistance. This is not lethargy; it is the friction of your consciousness operating in a day that does not mathematically exist.',
     quote: {
@@ -78,6 +102,9 @@ export const ARTICLES: ArticleData[] = [
       name: 'Ingrid Holtz-Schumacher',
       title: 'Lead Forensic Hardware Engineer, Silicon Audit Syndicate',
       avatarText: 'IHS',
+      portrait: ingridPortrait,
+      credentials: 'IEEE Fellow (Suspended, Pending Deposition) • Lead Author, "The Parasitic Watt"',
+      bio: 'Ingrid Holtz-Schumacher is an electrical hardware forensic specialist formerly with the Federal Telecommunications Testing Directorate in Munich. For twelve years she has reverse-engineered proprietary firmware on commercial consumer appliances, uncovering backdoors in coffee makers, toaster ovens, and domestic water filters.',
     },
     readTime: '11 min read',
     date: 'October 30, 2026',
@@ -91,7 +118,8 @@ export const ARTICLES: ArticleData[] = [
       tag: 'FIGURE 2.1 • PARASITIC THERMAL TELEMETRY',
       title: 'MICROWAVE CAVITY RF SPECTRUM DURING STANDBY',
       subtitle: 'Distinct harmonic spikes at 2.412 GHz coincide with Ethereum block difficulty adjustments.',
-      caption: 'Fig 2.1 — Unshielded RF telemetry captured via RTL-SDR spectrum receiver.',
+      caption: 'Fig 2.1 — Laboratory spectrum analysis demonstrating 2.412 GHz harmonic spikes during standby microwave defrost cycle.',
+      image: microwaveDiagram,
     },
     thirdParagraph: 'When confronted with oscilloscope data, three major appliance manufacturers insisted that the 4,200 hashes-per-second hash rate was merely a "calibrating diagnostic heartbeat for humidity sensing." Yet, smart home energy bills consistently reflect a persistent 48-watt baseline draw during peak slumber hours.',
     quote: {
@@ -114,6 +142,9 @@ export const ARTICLES: ArticleData[] = [
       name: 'Prof. Alistair Finchley, M.D.',
       title: 'Chair of Electromagnetic Gastroenterology, Zurich',
       avatarText: 'AF',
+      portrait: finchleyPortrait,
+      credentials: 'FRCP (Edin) • Director, Center for Gastro-Optical Photonics',
+      bio: 'Professor Alistair Finchley is a clinical gastroenterologist and cellular biophysicist at the Zurich Institute for Advanced Digestion. He is the author of over sixty papers on microbial resonance, acoustic endoscopy, and enteric packet switching. His clinical practice specializes in high-frequency fiber-optic bowel rehabilitation.',
     },
     readTime: '9 min read',
     date: 'October 28, 2026',
@@ -127,7 +158,8 @@ export const ARTICLES: ArticleData[] = [
       tag: 'FIGURE 3.4 • HEXADECIMAL STOOL MORPHOLOGY',
       title: 'GASTROINTESTINAL PACKET ROUTING EFFICIENCY',
       subtitle: 'Bacterial colonies demonstrating full TCP/IP three-way handshakes under 40x magnification.',
-      caption: 'Fig 3.4 — Microscopic visualization of symbiotic bio-digital packet routing.',
+      caption: 'Fig 3.4 — Microscopic visual confirmation of symbiotic bio-digital packet routing between bacterial colonies and glass fiber cables.',
+      image: gutFloraDiagram,
     },
     thirdParagraph: 'Patients suffering from this condition report hearing subtle modem dialing sounds after consuming legumes, alongside an intense physiological urge to reboot their router whenever experiencing gastrointestinal bloating. Traditional antacids merely introduce packet collisions into the colon.',
     quote: {
@@ -150,6 +182,9 @@ export const ARTICLES: ArticleData[] = [
       name: 'Dame Eleanor Sterling',
       title: 'Senior Archivist, International Metrology Historical Trust',
       avatarText: 'DES',
+      portrait: sterlingPortrait,
+      credentials: 'Commander of the Order of the Platinum-Iridium Bar • M.A. Cantab',
+      bio: 'Dame Eleanor Sterling spent forty-two years managing the declassified subterranean vaults of the Bureau International des Poids et Mesures in Sèvres before joining the Historical Metrology Trust. Her 1998 monograph on the 1974 Non-Occurring Decimal remains the seminal text on mid-century arithmetic censorship in Western Europe.',
     },
     readTime: '13 min read',
     date: 'October 25, 2026',
@@ -163,7 +198,8 @@ export const ARTICLES: ArticleData[] = [
       tag: 'FIGURE 4.2 • ARCHIVAL METROLOGY ARTIFACT',
       title: 'SWISS 8-DIGIT PROTOTYPE CALIPER (CIRCA 1974)',
       subtitle: 'The increment skipping directly from 8 to 10 without dimensional distortion.',
-      caption: 'Fig 4.2 — Photographed under monochromatic sodium-vapor illumination.',
+      caption: 'Fig 4.2 — Declassified 1974 Swiss caliper prototype demonstrating the calibrated jump from 8 directly to 10.',
+      image: caliperDiagram,
     },
     thirdParagraph: 'For over four hundred days, architectural blue-prints across France and Germany jumped directly from eight floors to ten floors. Elevators were re-geared. Arithmetic textbooks were recalled and reprinted with nine omitted, resulting in equations such as 3 × 3 = 10 (provisional).',
     quote: {
@@ -186,6 +222,9 @@ export const ARTICLES: ArticleData[] = [
       name: 'Dr. Wolfgang Krieger',
       title: 'Founder, Institute for Non-Euclidean Rest',
       avatarText: 'WK',
+      portrait: kriegerPortrait,
+      credentials: 'Doctor of Biomechanical Architecture, Stuttgart • Patented Inversion Pioneer',
+      bio: 'Dr. Wolfgang Krieger is an ergonomic contrarian and pioneer of inverted Somatic Gravity Architecture. He has slept suspended at a 47-degree downward tilt since March 2004 and holds nine international patents on clinical ankle-suspension sleep furniture. He claims to have never experienced a nightmare since abandoning mattresses.',
     },
     readTime: '7 min read',
     date: 'October 27, 2026',
@@ -199,7 +238,8 @@ export const ARTICLES: ArticleData[] = [
       tag: 'FIGURE 5.0 • INVERSION DRAINAGE EFFICIENCY',
       title: 'CEREBROSPINAL LYMPHATIC FLOW AT 47 DEGREES',
       subtitle: 'Toxins flushing directly toward cranial apex during rapid eye movement.',
-      caption: 'Fig 5.0 — High-contrast MRI visualization of inverted nocturnal drainage.',
+      caption: 'Fig 5.0 — Clinical schematic illustrating cerebrospinal lymphatic drainage flow vectors at the patented 47-degree angle.',
+      image: sleepDiagram,
     },
     thirdParagraph: 'Critics often cite mild facial puffiness and transient visual confusion upon waking as drawbacks. However, these are merely proof that your cerebral lobes are regenerating under natural terrestrial gravitational tension rather than lying dormant in a cotton-padded stasis chamber.',
     quote: {

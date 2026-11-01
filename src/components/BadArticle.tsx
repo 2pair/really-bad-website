@@ -13,7 +13,6 @@ import { useAudioController } from '../context/AudioControllerContext.tsx';
 import { StickyVideo } from './StickyVideo.tsx';
 import { ScamAds } from './ScamAds.tsx';
 import { ARTICLES, ArticleData } from '../data/articles.ts';
-import articleChartImg from '../assets/images/article_chart_1793320711165.jpg';
 
 interface BadArticleProps {
   onTriggerTodd: (prompt: string) => void;
@@ -190,25 +189,37 @@ export const BadArticle: React.FC<BadArticleProps> = ({
 
       {/* Continuation of Article Body */}
       <div className="space-y-6 text-neutral-800 leading-relaxed text-base font-serif mt-6">
-        {/* Delayed Image 1 without explicit dimensions: triggers sudden severe layout jump! */}
+        {/* Mid-Page Technical Figure with Actual Diagram Image (forces sudden layout shift) */}
         {delayedImage1Loaded && (
-          <div className="my-4 transition-all duration-300 animate-in fade-in">
-            {/* Deliberately no fixed height or width specified to force browser layout reflow! */}
-            <div className="p-4 bg-neutral-100 rounded-xl border border-neutral-300 text-center font-sans">
-              <div className="h-44 bg-gradient-to-r from-blue-700 via-purple-700 to-indigo-800 rounded-lg flex flex-col items-center justify-center text-white p-6 shadow-inner">
-                <span className="text-xs uppercase tracking-widest text-blue-200 font-bold mb-1">
-                  {currentArticle.figure.tag}
-                </span>
-                <h4 className="text-xl sm:text-2xl font-black max-w-md">
-                  {currentArticle.figure.title}
-                </h4>
-                <p className="text-xs text-blue-100 mt-2">
-                  {currentArticle.figure.subtitle}
-                </p>
-              </div>
-              <span className="text-[11px] text-neutral-500 mt-2 block italic">
-                {currentArticle.figure.caption}
+          <div className="my-6 border border-neutral-300 rounded-2xl overflow-hidden shadow-lg animate-in fade-in transition-all duration-300">
+            {/* Figure Header Bar */}
+            <div className="bg-neutral-900 text-white px-4 py-2.5 flex items-center justify-between font-sans">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-blue-300 font-bold">
+                {currentArticle.figure.tag}
               </span>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-600">
+                SYNC: ACTIVE
+              </span>
+            </div>
+
+            {/* Actual Diagram Image without fixed CSS aspect-ratio containment */}
+            <img
+              src={currentArticle.figure.image}
+              alt={currentArticle.figure.title}
+              className="w-full h-auto object-contain bg-neutral-950"
+            />
+
+            {/* Technical Copy and Captions */}
+            <div className="p-4 bg-neutral-100 font-sans text-xs text-neutral-800 border-t border-neutral-200 flex flex-col gap-1.5">
+              <h4 className="font-bold text-sm text-neutral-900 leading-tight">
+                {currentArticle.figure.title}
+              </h4>
+              <p className="text-xs text-neutral-700 font-medium">
+                {currentArticle.figure.subtitle}
+              </p>
+              <p className="text-[11px] text-neutral-500 italic mt-0.5">
+                {currentArticle.figure.caption}
+              </p>
             </div>
           </div>
         )}
@@ -230,20 +241,53 @@ export const BadArticle: React.FC<BadArticleProps> = ({
         {/* Middle Scam Ad Banner */}
         <ScamAds position="mid" />
 
-        {/* Scientific Chart Image: Figure 2 only displays on the relevant monday-tuesday article */}
-        {chartImageLoaded && currentArticle.id === 'monday-tuesday' && (
-          <div className="my-6 border border-neutral-300 rounded-2xl overflow-hidden shadow-lg animate-in fade-in">
-            {/* No width/height in HTML to maximize layout shift */}
-            <img
-              src={articleChartImg}
-              alt="Telemetry Shift Diagram"
-              className="w-full h-auto object-contain bg-neutral-100"
-            />
-            <div className="p-3 bg-neutral-100 font-sans text-xs text-neutral-600 border-t border-neutral-200">
-              <strong>Figure 2:</strong> Empirical Telemetry Verification Model (Sync Status: ACTIVE).
+        {/* ABOUT THE AUTHOR SECTION WITH PORTRAIT */}
+        <section className="my-8 p-6 bg-gradient-to-br from-neutral-50 via-white to-blue-50/40 border-2 border-neutral-200 rounded-2xl font-sans shadow-sm">
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-blue-600 mb-3 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+            <span>ABOUT THE INVESTIGATOR</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+            <div className="relative shrink-0 mx-auto sm:mx-0">
+              <img
+                src={currentArticle.author.portrait}
+                alt={currentArticle.author.name}
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-neutral-300 shadow-md bg-neutral-100"
+              />
+              <span className="absolute -bottom-2 -right-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow border border-white">
+                VERIFIED
+              </span>
+            </div>
+
+            <div className="space-y-1.5 flex-1 text-center sm:text-left">
+              <h4 className="text-lg font-black text-neutral-900 leading-snug">
+                {currentArticle.author.name}
+              </h4>
+              <p className="text-xs font-bold text-neutral-600">
+                {currentArticle.author.title}
+              </p>
+              <p className="text-[11px] font-mono text-blue-700 bg-blue-50 px-2 py-0.5 rounded inline-block border border-blue-200">
+                {currentArticle.author.credentials}
+              </p>
+              <p className="text-xs text-neutral-600 leading-relaxed pt-1">
+                {currentArticle.author.bio}
+              </p>
             </div>
           </div>
-        )}
+
+          <div className="mt-4 pt-3 border-t border-neutral-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+            <span className="text-neutral-500 font-mono">
+              Syndicate Credibility Rating: 99.8% (Peer Audited)
+            </span>
+            <button
+              onClick={handleDownloadClick}
+              className="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg font-bold text-xs cursor-pointer active:scale-95 transition-all"
+            >
+              Request Telemetry Deposition
+            </button>
+          </div>
+        </section>
 
         {/* INTER-ARTICLE LINK BUTTONS: Other articles linked via buttons in the first article */}
         <div className="my-8 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-2xl font-sans">

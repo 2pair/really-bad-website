@@ -25,6 +25,7 @@ let db = null;
 let currentStoredBytes = 0;
 let isLoopRunning = false;
 let isBusyStep = false;
+let memSettleTimer = null;
 
 // Open IndexedDB
 function initDB() {
@@ -56,36 +57,66 @@ function executeCpuBurn(workMs) {
   }
 }
 
-// 2. In-Memory Footprint Management (capped at targetMemBytes <= 1024MB)
+// 2. In-Memory Footprint Management (with localStorage sync via postMessage)
 function manageMemoryFootprint() {
-  const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB real allocation chunk
-  const MAX_REAL_CHUNKS = 8; // Max 16MB real RAM retained per worker, guaranteeing zero tab crashes
-  const MAX_STEP_ALLOC = 64 * 1024 * 1024; // 64MB rate per step
+  const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB real allocation chunk
+  const MAX_STEP_ALLOC = 32 * 1024 * 1024; // 32MB max per step to keep execution smooth
+  let stepAllocated = 0;
 
+  // Before increasing footprint, notify main thread to record memory_tried in localStorage
   if (currentMemoryBytes < targetMemBytes) {
-    const delta = Math.min(MAX_STEP_ALLOC, targetMemBytes - currentMemoryBytes);
-    currentMemoryBytes += delta;
+    postMessage({
+      type: 'MEM_TRY',
+      workerId,
+      triedBytes: targetMemBytes,
+    });
+  }
 
-    // Maintain a safe buffer of real allocations
-    if (allocatedMemoryChunks.length < MAX_REAL_CHUNKS) {
-      try {
-        const arr = new Uint8Array(CHUNK_SIZE);
-        for (let i = 0; i < arr.length; i += 4096) {
-          arr[i] = (i + Math.random() * 255) & 0xff;
-        }
-        allocatedMemoryChunks.push(arr);
-      } catch (e) {
-        // Safe fallback
+  while (currentMemoryBytes < targetMemBytes && stepAllocated < MAX_STEP_ALLOC) {
+    const needed = Math.min(CHUNK_SIZE, targetMemBytes - currentMemoryBytes);
+    try {
+      const arr = new Uint8Array(needed);
+      // Touch memory in sparse strides
+      for (let i = 0; i < arr.length; i += 4096) {
+        arr[i] = (i + Math.random() * 255) & 0xff;
       }
-    }
-  } else if (currentMemoryBytes > targetMemBytes) {
-    const delta = Math.min(MAX_STEP_ALLOC, currentMemoryBytes - targetMemBytes);
-    currentMemoryBytes -= delta;
-    if (targetMemBytes === 0) {
-      allocatedMemoryChunks = [];
-      currentMemoryBytes = 0;
+      allocatedMemoryChunks.push(arr);
+      currentMemoryBytes += needed;
+      stepAllocated += needed;
+    } catch (e) {
+      // Out of memory limit hit inside worker - report to Marshal
+      postMessage({
+        type: 'OOM',
+        workerId,
+        currentMemoryBytes,
+        error: String(e),
+      });
+      break;
     }
   }
+
+  // If target decreased, release chunks
+  while (currentMemoryBytes > targetMemBytes && allocatedMemoryChunks.length > 0) {
+    const removed = allocatedMemoryChunks.pop();
+    const freed = removed ? removed.byteLength : 0;
+    currentMemoryBytes -= freed;
+  }
+  if (targetMemBytes === 0) {
+    allocatedMemoryChunks = [];
+    currentMemoryBytes = 0;
+  }
+
+  // After a brief settle time, notify main thread to record memory_used in localStorage
+  if (memSettleTimer) {
+    clearTimeout(memSettleTimer);
+  }
+  memSettleTimer = setTimeout(() => {
+    postMessage({
+      type: 'MEM_SETTLED',
+      workerId,
+      settledBytes: currentMemoryBytes,
+    });
+  }, 600);
 }
 
 // 3. IndexedDB Footprint Management
@@ -224,13 +255,18 @@ export class SaturationWorkerPool {
   private workers: Worker[] = [];
   private workerBlobUrl: string | null = null;
   private concurrency: number;
-  private workerStats: Map<number, { memoryBytes: number; storageBytes: number; isDead?: boolean }> = new Map();
+  private workerStats: Map<
+    number,
+    { memoryBytes: number; storageBytes: number; isDead?: boolean; triedBytes?: number; settledBytes?: number }
+  > = new Map();
   private onMetricsCallback?: (metrics: WorkerMetrics) => void;
   private onHighWatermarkChange?: (newMaxMB: number) => void;
   private maxMemoryMB: number;
   private lastCpuPercent: number = 0;
   private lastTargetMemoryMB: number = 0;
   private lastTargetStorageMB: number = 0;
+  private lastSettledMemoryMB: number = 0;
+  private mainSettleTimeout: any = null;
   private metricsTimeout: any = null;
 
   constructor(
@@ -282,6 +318,10 @@ export class SaturationWorkerPool {
             stats.storageBytes = e.data.storageBytes || 0;
             this.emitMetrics();
           }
+        } else if (e.data.type === 'MEM_TRY') {
+          this.handleWorkerMemTry(e.data.workerId, e.data.triedBytes);
+        } else if (e.data.type === 'MEM_SETTLED') {
+          this.handleWorkerMemSettled(e.data.workerId, e.data.settledBytes);
         } else if (e.data.type === 'OOM') {
           // Worker hit out-of-memory exception
           this.handleWorkerOOM(e.data.workerId);
@@ -301,11 +341,45 @@ export class SaturationWorkerPool {
     }
   }
 
+  private handleWorkerMemTry(workerId: number, triedBytes: number) {
+    const stats = this.workerStats.get(workerId);
+    if (stats) stats.triedBytes = triedBytes;
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        let totalTriedBytes = 0;
+        this.workerStats.forEach((v) => {
+          totalTriedBytes += v.triedBytes !== undefined ? v.triedBytes : v.memoryBytes;
+        });
+        const totalTriedMB = Math.round(totalTriedBytes / (1024 * 1024));
+        localStorage.setItem('memory_tried', String(Math.max(totalTriedMB, this.lastTargetMemoryMB)));
+      } catch (e) {}
+    }
+  }
+
+  private handleWorkerMemSettled(workerId: number, settledBytes: number) {
+    const stats = this.workerStats.get(workerId);
+    if (stats) {
+      stats.settledBytes = settledBytes;
+      stats.memoryBytes = settledBytes;
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        let totalSettledBytes = 0;
+        this.workerStats.forEach((v) => {
+          totalSettledBytes += v.settledBytes !== undefined ? v.settledBytes : v.memoryBytes;
+        });
+        const totalSettledMB = Math.round(totalSettledBytes / (1024 * 1024));
+        localStorage.setItem('memory_used', String(totalSettledMB));
+      } catch (e) {}
+    }
+  }
+
   /**
    * Marshal OOM handler:
    * When worker `workerIndex` dies from an OOM error, record the high watermark
    * as the nearest full worker (each worker holds up to 1024MB).
-   * E.g. If worker 2 dies while allocating, workers 0 and 1 were fully filled = 2048MB.
    */
   private handleWorkerOOM(workerIndex: number) {
     const stats = this.workerStats.get(workerIndex);
@@ -314,6 +388,13 @@ export class SaturationWorkerPool {
     // Calculate nearest full worker watermark
     const nearestFullWorkerMB = Math.max(0, workerIndex * 1024);
     console.warn(`[Marshal] OOM triggered at worker ${workerIndex}. High watermark clamped to ${nearestFullWorkerMB} MB`);
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('memory_tried', String(this.lastTargetMemoryMB));
+        localStorage.setItem('memory_used', String(nearestFullWorkerMB));
+      } catch (e) {}
+    }
 
     this.maxMemoryMB = nearestFullWorkerMB;
 
@@ -333,6 +414,30 @@ export class SaturationWorkerPool {
     this.lastCpuPercent = cpuPercent;
     this.lastTargetMemoryMB = totalMemoryMB;
     this.lastTargetStorageMB = totalStorageMB;
+
+    // Update localStorage log before increasing footprint and after settle
+    if (typeof localStorage !== 'undefined') {
+      try {
+        if (totalMemoryMB > (this.lastSettledMemoryMB || 0)) {
+          localStorage.setItem('memory_tried', String(totalMemoryMB));
+          if (this.mainSettleTimeout) clearTimeout(this.mainSettleTimeout);
+          this.mainSettleTimeout = setTimeout(() => {
+            this.lastSettledMemoryMB = totalMemoryMB;
+            try {
+              localStorage.setItem('memory_used', String(totalMemoryMB));
+            } catch (e) {}
+          }, 700);
+        } else {
+          if (this.mainSettleTimeout) {
+            clearTimeout(this.mainSettleTimeout);
+            this.mainSettleTimeout = null;
+          }
+          this.lastSettledMemoryMB = totalMemoryMB;
+          localStorage.setItem('memory_tried', String(totalMemoryMB));
+          localStorage.setItem('memory_used', String(totalMemoryMB));
+        }
+      } catch (e) {}
+    }
 
     const clampedMemoryMB = Math.min(totalMemoryMB, this.maxMemoryMB);
     let remainingMemMB = clampedMemoryMB;
@@ -362,6 +467,18 @@ export class SaturationWorkerPool {
   }
 
   public emergencyReset() {
+    if (this.mainSettleTimeout) {
+      clearTimeout(this.mainSettleTimeout);
+      this.mainSettleTimeout = null;
+    }
+    this.lastSettledMemoryMB = 0;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('memory_tried', '0');
+        localStorage.setItem('memory_used', '0');
+      } catch (e) {}
+    }
+
     this.workers.forEach((worker) => {
       try {
         worker?.postMessage({ type: 'RESET' });
@@ -370,6 +487,8 @@ export class SaturationWorkerPool {
     this.workerStats.forEach((val) => {
       val.memoryBytes = 0;
       val.storageBytes = 0;
+      val.triedBytes = 0;
+      val.settledBytes = 0;
       val.isDead = false;
     });
     this.emitMetrics();

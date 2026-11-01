@@ -17,7 +17,24 @@ function AppContent() {
     ? (navigator as any).deviceMemory * 1024
     : 4096;
 
-  const [maxMemoryMB, setMaxMemoryMB] = useState<number>(initialSystemMemoryMB);
+  // On page load, first check localStorage memory log (OOM kill recovery on iOS/mobile)
+  const [maxMemoryMB, setMaxMemoryMB] = useState<number>(() => {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      try {
+        const triedStr = localStorage.getItem('memory_tried');
+        const usedStr = localStorage.getItem('memory_used');
+        const tried = triedStr ? parseInt(triedStr, 10) : 0;
+        const used = usedStr ? parseInt(usedStr, 10) : 0;
+        if (tried > used) {
+          console.warn(`[OOM Log Recovery] Detected prior crash: memory_tried=${tried}MB > memory_used=${used}MB. Setting slider max to ${used}MB.`);
+          return Math.max(128, used);
+        }
+      } catch (e) {
+        console.warn('Failed to read localStorage memory log', e);
+      }
+    }
+    return initialSystemMemoryMB;
+  });
 
   // Resource saturation targets
   const [cpu, setCpu] = useState<number>(0); // 0 to 99%
@@ -86,7 +103,7 @@ function AppContent() {
   // Initialize saturation worker pool with Marshal and OOM high watermark listener
   useEffect(() => {
     const pool = new SaturationWorkerPool(
-      initialSystemMemoryMB,
+      maxMemoryMB,
       (metrics) => {
         setWorkerMetrics(metrics);
       },

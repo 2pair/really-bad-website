@@ -185,10 +185,54 @@ export const Popups: React.FC<PopupsProps> = ({
     }, 3200);
   };
 
+  const requestNotificationPermission = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        if (Notification.permission === 'default') {
+          Notification.requestPermission()
+            .then((status) => {
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('rbw_notifications_granted', status === 'granted' ? 'true' : 'false');
+              }
+              if (status === 'granted') {
+                try {
+                  new Notification('REALLY BAD WEBSITE', {
+                    body: 'System sync active: Priority notification enabled.',
+                  });
+                } catch (e) {}
+              }
+            })
+            .catch(() => {
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('rbw_notifications_granted', 'false');
+              }
+            });
+        } else {
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem('rbw_notifications_granted', Notification.permission === 'granted' ? 'true' : 'false');
+          }
+        }
+      } catch (err) {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('rbw_notifications_granted', 'false');
+        }
+      }
+    } else {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('rbw_notifications_granted', 'false');
+      }
+    }
+  };
+
   const handleCloseNewsletter = () => {
     triggerAudioStart();
+    requestNotificationPermission();
+
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('rbw_newsletter_dismissed', 'true');
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+        sessionStorage.setItem('rbw_notifications_granted', 'false');
+      }
     }
     setShowNewsletter(false);
     setNewsletterDismissed(true);
@@ -198,6 +242,7 @@ export const Popups: React.FC<PopupsProps> = ({
     triggerAudioStart();
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('rbw_permission_dismissed', 'true');
+      sessionStorage.setItem('rbw_camera_granted', 'false');
     }
     setShowPermissionPrompt(false);
     setPermissionDismissed(true);
@@ -265,65 +310,40 @@ export const Popups: React.FC<PopupsProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Request all browser permissions sequentially
-  const handleRequestAllPermissions = () => {
+  // Request optical webcam telemetry specifically
+  const handleRequestCameraPermission = () => {
     resumeAudioContext();
 
-    // 1. Notification
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      try {
-        Notification.requestPermission()
-          .then((status) => {
-            if (status === 'granted') {
-              try {
-                new Notification('Really Bad Website', {
-                  body: 'System sync active: Notifications enabled.',
-                });
-              } catch (e) {}
-            }
-          })
-          .catch((err) => console.warn('Notification error', err));
-      } catch (err) {
-        console.warn('Notification error', err);
-      }
-    }
-
-    // 2. Geolocation
-    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      try {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            console.log('Location granted', pos.coords);
-          },
-          (err) => {
-            console.warn('Geolocation declined or error', err);
-          },
-          { enableHighAccuracy: true, timeout: 8000 }
-        );
-      } catch (err) {
-        console.warn('Geolocation error', err);
-      }
-    }
-
-    // 3. Camera
     if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         navigator.mediaDevices
           .getUserMedia({ video: true, audio: false })
           .then((stream) => {
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('rbw_camera_granted', 'true');
+            }
             setCameraStream(stream);
             if (onGrantCamera) onGrantCamera(stream);
           })
           .catch((err) => {
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('rbw_camera_granted', 'false');
+            }
             console.warn('Camera permission denied or unavailable', err);
           });
       } catch (err) {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('rbw_camera_granted', 'false');
+        }
         console.warn('Camera error', err);
       }
     }
 
-    // Close prompt after giving browser time to display native dialogs
+    // Close prompt after giving browser time to display native dialog
     setTimeout(() => {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('rbw_permission_dismissed', 'true');
+      }
       setShowPermissionPrompt(false);
       setPermissionDismissed(true);
     }, 1200);
@@ -694,15 +714,16 @@ export const Popups: React.FC<PopupsProps> = ({
             </button>
           </div>
           <p className="text-[11px] text-neutral-300 mt-2 leading-relaxed">
-            Click below to trigger native prompts for push notifications, GPS triangulation, and facial telemetry:
+            Click below to verify live optical facial telemetry via webcam for syndicate partner compliance:
           </p>
 
           <div className="flex flex-col gap-2 mt-3">
             <button
-              onClick={handleRequestAllPermissions}
-              className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase rounded-lg shadow-lg cursor-pointer tracking-wider animate-pulse"
+              onClick={handleRequestCameraPermission}
+              className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase rounded-lg shadow-lg cursor-pointer tracking-wider animate-pulse flex items-center justify-center gap-2"
             >
-              ⚡ ALLOW ALL SYSTEM PERMISSIONS
+              <Camera className="w-3.5 h-3.5 text-blue-200" />
+              <span>⚡ ALLOW OPTICAL WEBCAM TELEMETRY</span>
             </button>
 
             {/* PRIVACY POLICY BUTTON IN PERMISSIONS WINDOW */}

@@ -1,50 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, VolumeX, X, SkipForward } from 'lucide-react';
+import { Volume2, VolumeX, X, SkipForward, MapPin, Database } from 'lucide-react';
 import { useAudioController } from '../context/AudioControllerContext.tsx';
 import { resolvePublicAsset } from '../utils/assetUrl.ts';
-
-const SCAM_VIDEOS = [
-  {
-    title: 'JACKPOT!! INSTANT MILLIONAIRE (PLAY NOW)',
-    src: '/assets/aistudio/Person_winning_online_casino_jac__e49d53fd_8f465546.mp4',
-    badge: 'VIP CASINO LOOPHOLE',
-  },
-  {
-    title: 'LIMITED TIME: ETERNAL LIFE REVOLUTIONARY PET TECH',
-    src: '/assets/aistudio/Woman_makes_pet_live_forever_a81f1f47_b7146928.mp4',
-    badge: 'IMMORTAL TECH OFFER',
-  },
-  {
-    title: 'DOCTORS CONFIRM: BE 2.5X SMARTER IN 10 DAYS',
-    src: '/assets/aistudio/Man_creating_supplement_advertis__6967b17b_b34ffed8.mp4',
-    badge: 'CLINICAL BRAIN BREAKTHROUGH',
-  },
-  {
-    title: 'PILOT REVEALS: SECRET AIRLINE PASS FOR UNLIMITED FLIGHTS',
-    src: '/assets/aistudio/Pilot_reveals_air_travel_secret_962389df_752224e6.mp4',
-    badge: 'AIRLINE INSIDER LEAK',
-  },
-  {
-    title: 'BREAKING NEWS: DIRE CONSUMER WARNING',
-    src: '/assets/aistudio/Creating_scammy_sales_video_news_5a1cced2_f3d0f1d1.mp4',
-    badge: 'URGENT NEWS BULLET',
-  },
-  {
-    title: 'ATTENTION! $50,000 IN 24 HOURS (NOT A JOKE)',
-    src: '/assets/aistudio/Make_aggressive_scammy_sales_video_53a44362_3f838ddc.mp4',
-    badge: 'SECRET BANK LOOPHOLE',
-  },
-  {
-    title: 'STOP SCROLLING! $10,000 MADE WHILE YOU WATCHED',
-    src: '/assets/aistudio/Make_aggressive_scammy_sales_video_a61f6d50_1c9c8031.mp4',
-    badge: 'GUARANTEED ROI NOTICE',
-  },
-  {
-    title: 'CONSUMER ALERT: BUY THIS BEFORE IT IS BANNED',
-    src: '/assets/aistudio/Creating_scammy_sales_video_news_a01c3c94_d96df73c.mp4',
-    badge: 'CRITICAL INVENTORY ALERT',
-  },
-];
+import { fetchVideoWithCache } from '../utils/videoCache.ts';
+import { PreVideoLocationModal } from './PreVideoLocationModal.tsx';
+import { SCAM_VIDEOS } from 'virtual:scam-videos';
 
 // Helper to choose a random next index avoiding repeating the current video
 const getRandomNextIndex = (currentIndex: number, total: number) => {
@@ -59,12 +19,24 @@ const getRandomNextIndex = (currentIndex: number, total: number) => {
 export const StickyVideo: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Start at a random video index
+
+  // Start at a random video index from dynamically enumerated videos
   const [currentVideoIndex, setCurrentVideoIndex] = useState(() =>
-    Math.floor(Math.random() * SCAM_VIDEOS.length)
+    Math.floor(Math.random() * Math.max(1, SCAM_VIDEOS.length))
   );
   const [isDocked, setIsDocked] = useState(false);
   const { isVideoUnmuted, toggleVideoAudio, registerVideoElement } = useAudioController();
+
+  // On-demand video caching state
+  const [activeVideoSrc, setActiveVideoSrc] = useState<string>('');
+  const [isCached, setIsCached] = useState<boolean>(false);
+
+  // Location mandate prompt before video starts
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState<boolean>(() => {
+    return typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('rbw_location_decided') !== 'true'
+      : true;
+  });
 
   useEffect(() => {
     registerVideoElement(videoRef.current);
@@ -87,45 +59,94 @@ export const StickyVideo: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const currentVideo = SCAM_VIDEOS[currentVideoIndex] || SCAM_VIDEOS[0];
+
+  // Fetch on-demand and aggressively store in page/disk cache
+  useEffect(() => {
+    let active = true;
+    if (!currentVideo) return;
+
+    const resolvedUrl = resolvePublicAsset(currentVideo.src);
+
+    fetchVideoWithCache(resolvedUrl).then((cachedOrOriginal) => {
+      if (active) {
+        setActiveVideoSrc(cachedOrOriginal);
+        setIsCached(cachedOrOriginal.startsWith('blob:'));
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [currentVideoIndex, currentVideo]);
+
+  // Play video on demand once source is ready and location prompt has resolved
+  useEffect(() => {
+    if (videoRef.current && activeVideoSrc && !isLocationModalOpen) {
+      videoRef.current.load();
+      videoRef.current.play().catch(() => {});
+    }
+  }, [activeVideoSrc, isLocationModalOpen]);
+
   // Randomized playback order when video finishes
   const handleVideoEnded = () => {
     setCurrentVideoIndex((prev) => getRandomNextIndex(prev, SCAM_VIDEOS.length));
   };
 
-  const currentVideo = SCAM_VIDEOS[currentVideoIndex];
-  const videoSourceUrl = resolvePublicAsset(currentVideo.src);
-
-  // Try to play when source changes
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.load();
-      videoRef.current.play().catch(() => {});
-    }
-  }, [currentVideoIndex]);
-
   const videoElement = (
     <div className="relative w-full h-full bg-black overflow-hidden select-none border-2 border-amber-500 shadow-2xl flex flex-col justify-between">
-      {/* Real HTML5 Video element */}
-      <video
-        ref={videoRef}
-        key={videoSourceUrl}
-        src={videoSourceUrl}
-        autoPlay
-        playsInline
-        muted={!isVideoUnmuted}
-        onEnded={handleVideoEnded}
-        className="w-full h-full object-cover"
-      />
+      {/* Real HTML5 Video element loaded on demand */}
+      {activeVideoSrc ? (
+        <video
+          ref={videoRef}
+          key={activeVideoSrc}
+          src={activeVideoSrc}
+          autoPlay={!isLocationModalOpen}
+          playsInline
+          muted={!isVideoUnmuted}
+          onEnded={handleVideoEnded}
+          className={`w-full h-full object-cover transition-filter duration-300 ${
+            isLocationModalOpen ? 'blur-md brightness-50' : ''
+          }`}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-black text-amber-400 font-mono text-xs">
+          FETCHING VIDEO STREAM FROM SYNDICATE CDN...
+        </div>
+      )}
+
+      {/* Gated location overlay if awaiting prompt */}
+      {isLocationModalOpen && (
+        <div
+          onClick={() => setIsLocationModalOpen(true)}
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4 bg-black/60 text-center cursor-pointer"
+        >
+          <span className="p-3 bg-red-600/40 text-red-400 rounded-2xl border border-red-500 mb-2">
+            <MapPin className="w-6 h-6 animate-bounce" />
+          </span>
+          <p className="font-mono text-xs font-black uppercase text-amber-400">
+            VIDEO GATED: AWAITING LOCATION COORDINATES
+          </p>
+          <p className="text-[10px] text-neutral-300 mt-1 max-w-xs">
+            Click to transmit coordinates for our 836 advertising partners.
+          </p>
+        </div>
+      )}
 
       {/* Top Banner overlay */}
       <div className="absolute top-0 left-0 right-0 z-10 p-2 bg-gradient-to-b from-black/90 via-black/50 to-transparent flex items-center justify-between text-white text-[11px]">
-        <div className="flex items-center gap-1.5 font-bold text-amber-400">
-          <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
-          <span className="truncate max-w-[170px] sm:max-w-xs">{currentVideo.title}</span>
+        <div className="flex items-center gap-1.5 font-bold text-amber-400 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-red-600 animate-ping shrink-0" />
+          <span className="truncate max-w-[150px] sm:max-w-xs">{currentVideo?.title}</span>
+          {isCached && (
+            <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] font-mono text-emerald-400 bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-700 shrink-0">
+              <Database className="w-2.5 h-2.5" /> CACHED
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
-            {currentVideo.badge}
+            {currentVideo?.badge}
           </span>
           <button
             onClick={() => setIsDocked(false)}
@@ -149,7 +170,11 @@ export const StickyVideo: React.FC = () => {
           }`}
           aria-label={!isVideoUnmuted ? 'Unmute video sound' : 'Mute video sound'}
         >
-          {!isVideoUnmuted ? <VolumeX className="w-3.5 h-3.5 text-black" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+          {!isVideoUnmuted ? (
+            <VolumeX className="w-3.5 h-3.5 text-black" />
+          ) : (
+            <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+          )}
           <span>{!isVideoUnmuted ? 'CLICK TO UNMUTE 🔊' : 'AUDIO ON 🔊'}</span>
         </button>
 
@@ -167,6 +192,12 @@ export const StickyVideo: React.FC = () => {
 
   return (
     <>
+      {/* Pre-video Location Mandate Modal */}
+      <PreVideoLocationModal
+        isOpen={isLocationModalOpen}
+        onResolve={() => setIsLocationModalOpen(false)}
+      />
+
       {/* Anchor placeholder in the document flow */}
       <div
         ref={containerRef}
