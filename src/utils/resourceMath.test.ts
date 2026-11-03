@@ -4,10 +4,25 @@ import {
   calculateDutyCycle,
   partitionTarget,
   calculateStorageArtifactCount,
+  calculateMemoryArtifactCount,
   calculateLagDelayMs,
   formatBytes,
   calculateEdgeBiasedPosition,
 } from './resourceMath.ts';
+
+test('calculateMemoryArtifactCount dynamically scales with ceiling limit', () => {
+  const zero = calculateMemoryArtifactCount(0, 4096);
+  assert.equal(zero, 0);
+
+  const halfAt4GB = calculateMemoryArtifactCount(2048, 4096);
+  assert.ok(halfAt4GB >= 250);
+
+  const fullAt4GB = calculateMemoryArtifactCount(4096, 4096);
+  assert.equal(fullAt4GB, 500);
+
+  const fullAt16GB = calculateMemoryArtifactCount(16384, 16384);
+  assert.equal(fullAt16GB, 2000);
+});
 
 test('calculateDutyCycle caps at 99% and maintains non-zero sleep', () => {
 

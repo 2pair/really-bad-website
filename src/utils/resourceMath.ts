@@ -37,6 +37,22 @@ export function calculateStorageArtifactCount(storageMB: number, maxMB: number =
 }
 
 /**
+ * Computes count of corruption artifacts based on memory footprint,
+ * where max artifacts dynamically scale with whatever ceiling limit we are set to.
+ */
+export function calculateMemoryArtifactCount(
+  memoryMB: number,
+  maxMemoryMB: number = 4096,
+  baseMaxArtifacts?: number
+): number {
+  if (memoryMB <= 0 || maxMemoryMB <= 0) return 0;
+  const maxArtifactCapacity =
+    baseMaxArtifacts ?? Math.max(300, Math.min(2500, Math.round((maxMemoryMB / 1024) * 125)));
+  const ratio = Math.max(0, Math.min(1, memoryMB / maxMemoryMB));
+  return Math.round(ratio * maxArtifactCapacity);
+}
+
+/**
  * Calculates synthetic UI lag delay in milliseconds for Memory usage (0 to 4096 MB).
  * Translates into intentional main-thread execution stalls and dropped frames.
  */

@@ -1,37 +1,70 @@
 import React, { useMemo } from 'react';
-import { calculateStorageArtifactCount, calculateEdgeBiasedPosition } from '../utils/resourceMath.ts';
+import {
+  calculateStorageArtifactCount,
+  calculateMemoryArtifactCount,
+  calculateEdgeBiasedPosition,
+} from '../utils/resourceMath.ts';
 
 interface StorageCorruptionEffectProps {
   storageMB: number; // 0 to 4096
   maxStorageMB?: number;
+  memoryMB?: number;
+  maxMemoryMB?: number;
 }
 
 export const StorageCorruptionEffect: React.FC<StorageCorruptionEffectProps> = ({
   storageMB,
   maxStorageMB = 4096,
+  memoryMB = 0,
+  maxMemoryMB = 4096,
 }) => {
-  const count = calculateStorageArtifactCount(storageMB, maxStorageMB);
+  // Max artifacts dynamically based on whatever ceiling memory or storage is configured to
+  const maxArtifactCapacity = Math.max(
+    500,
+    Math.min(2500, Math.round((Math.max(maxMemoryMB, maxStorageMB) / 1024) * 125))
+  );
 
-  // 1mm square ≈ 3.78px (~4px by 4px), nearly opaque (0.94) scattered with strong edge bias
+  const memoryCount = calculateMemoryArtifactCount(memoryMB, maxMemoryMB, maxArtifactCapacity);
+  const storageCount = calculateStorageArtifactCount(storageMB, maxStorageMB);
+  const count = Math.min(maxArtifactCapacity, Math.max(memoryCount, storageCount));
+
+  // 1mm square ≈ 3.78px (~4px by 4px), mostly white like the background (#ffffff, #fafafa)
   const squares = useMemo(() => {
     const list = [];
-    for (let i = 0; i < 500; i++) {
-      const { top, left } = calculateEdgeBiasedPosition(i, 500);
+    for (let i = 0; i < maxArtifactCapacity; i++) {
+      const { top, left } = calculateEdgeBiasedPosition(i, maxArtifactCapacity);
 
-      const colorType = i % 10;
+      // Mostly white like the page background, with subtle tone variations
+      const colorType = i % 12;
       const bg =
         colorType === 0
-          ? '#ff0055' // neon red glitch
+          ? '#ffffff'
           : colorType === 1
-          ? '#00e5ff' // cyan glitch
+          ? '#fafafa'
           : colorType === 2
-          ? '#ffff00' // yellow glitch
-          : '#000000'; // black void square
+          ? '#f4f4f5'
+          : colorType === 3
+          ? '#ffffff'
+          : colorType === 4
+          ? '#ffffff'
+          : colorType === 5
+          ? '#f8fafc'
+          : colorType === 6
+          ? '#ffffff'
+          : colorType === 7
+          ? '#f1f5f9'
+          : colorType === 8
+          ? '#ffffff'
+          : colorType === 9
+          ? '#fff7ed' // faint warm white
+          : colorType === 10
+          ? '#f0fdf4' // faint cool white
+          : '#ffffff';
 
       list.push({ id: i, top, left, bg });
     }
     return list;
-  }, []);
+  }, [maxArtifactCapacity]);
 
   if (count <= 0) return null;
 
@@ -43,17 +76,16 @@ export const StorageCorruptionEffect: React.FC<StorageCorruptionEffectProps> = (
       {squares.slice(0, count).map((sq) => (
         <div
           key={sq.id}
-          className="absolute"
           style={{
+            position: 'absolute',
             top: `${sq.top}%`,
             left: `${sq.left}%`,
-            // 1mm square: 1mm ≈ 3.78px (~4px)
             width: '4px',
             height: '4px',
             backgroundColor: sq.bg,
-            // nearly opaque
+            border: '1px solid rgba(228, 228, 231, 0.7)',
             opacity: 0.92,
-            boxShadow: '0 0 1px rgba(0, 0, 0, 0.9)',
+            boxShadow: '0 0 1px rgba(0,0,0,0.06)',
           }}
         />
       ))}

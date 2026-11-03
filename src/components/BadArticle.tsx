@@ -13,6 +13,7 @@ import { useAudioController } from '../context/AudioControllerContext.tsx';
 import { StickyVideo } from './StickyVideo.tsx';
 import { ScamAds } from './ScamAds.tsx';
 import { ARTICLES, ArticleData } from '../data/articles.ts';
+import { logNavigationChaos } from '../utils/consoleChaos.ts';
 
 interface BadArticleProps {
   onTriggerTodd: (prompt: string) => void;
@@ -94,6 +95,13 @@ export const BadArticle: React.FC<BadArticleProps> = ({
   const handleSwitchArticle = (articleId: string) => {
     resumeAudioContext();
     playSwoosh();
+
+    // Trigger authentic navigation lag and console error/warning
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('rbw-navigation-lag', { detail: { delayMs: 260 } }));
+    }
+    logNavigationChaos(articleId);
+
     setActiveArticleId(articleId);
     onArticleTransition?.();
     // Scroll back to top of article container

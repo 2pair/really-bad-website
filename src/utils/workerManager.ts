@@ -106,6 +106,13 @@ function manageMemoryFootprint() {
     currentMemoryBytes = 0;
   }
 
+  // Allocation step succeeded without error: notify Marshall worker
+  postMessage({
+    type: 'MEM_SUCCESS',
+    workerId,
+    currentMemoryBytes,
+  });
+
   // After a brief settle time, notify main thread to record memory_used in localStorage
   if (memSettleTimer) {
     clearTimeout(memSettleTimer);
@@ -226,6 +233,14 @@ self.onmessage = async (e) => {
     targetCpu = data.cpu;
     targetMemBytes = data.memoryBytes;
     targetStorageBytes = data.storageBytes;
+  } else if (data.type === 'HEARTBEAT_PING') {
+    // Respond to heartbeat from Marshall, confirming worker is responsive after memory allocation
+    postMessage({
+      type: 'HEARTBEAT_PONG',
+      workerId,
+      currentMemoryBytes,
+      timestamp: data.timestamp,
+    });
   } else if (data.type === 'RESET') {
     targetCpu = 0;
     targetMemBytes = 0;
@@ -320,6 +335,20 @@ export class SaturationWorkerPool {
           }
         } else if (e.data.type === 'MEM_TRY') {
           this.handleWorkerMemTry(e.data.workerId, e.data.triedBytes);
+        } else if (e.data.type === 'MEM_SUCCESS') {
+          // Marshall heartbeat protocol: Send ping to verify worker survived allocation
+          try {
+            worker.postMessage({
+              type: 'HEARTBEAT_PING',
+              workerId: e.data.workerId,
+              timestamp: Date.now(),
+            });
+          } catch (err) {
+            this.handleWorkerOOM(e.data.workerId);
+          }
+        } else if (e.data.type === 'HEARTBEAT_PONG') {
+          // Marshall heartbeat confirmed: worker is alive and responsive after allocation
+          this.handleWorkerHeartbeatPong(e.data.workerId, e.data.currentMemoryBytes);
         } else if (e.data.type === 'MEM_SETTLED') {
           this.handleWorkerMemSettled(e.data.workerId, e.data.settledBytes);
         } else if (e.data.type === 'OOM') {
@@ -357,6 +386,36 @@ export class SaturationWorkerPool {
     }
   }
 
+  private handleWorkerHeartbeatPong(workerId: number, currentMemoryBytes: number) {
+    const stats = this.workerStats.get(workerId);
+    if (stats) {
+      stats.settledBytes = currentMemoryBytes;
+      stats.memoryBytes = currentMemoryBytes;
+    }
+
+    if (typeof localStorage !== 'undefined') {
+      try {
+        let totalSettledBytes = 0;
+        this.workerStats.forEach((v) => {
+          if (!v.isDead) {
+            totalSettledBytes += v.settledBytes !== undefined ? v.settledBytes : v.memoryBytes;
+          }
+        });
+        const totalSettledMB = Math.round(totalSettledBytes / (1024 * 1024));
+        localStorage.setItem('memory_used', String(totalSettledMB));
+        const prevHwm = parseInt(localStorage.getItem('memory_high_watermark') || '0', 10);
+        const newHwm = Math.max(prevHwm, totalSettledMB);
+        localStorage.setItem('memory_high_watermark', String(newHwm));
+        // Mark app as ALIVE: memory allocation was verified responsive by heartbeat
+        localStorage.setItem('memory_alive', 'true');
+
+        if (this.onHighWatermarkChange && newHwm > 0) {
+          this.onHighWatermarkChange(newHwm);
+        }
+      } catch (e) {}
+    }
+  }
+
   private handleWorkerMemSettled(workerId: number, settledBytes: number) {
     const stats = this.workerStats.get(workerId);
     if (stats) {
@@ -372,6 +431,9 @@ export class SaturationWorkerPool {
         });
         const totalSettledMB = Math.round(totalSettledBytes / (1024 * 1024));
         localStorage.setItem('memory_used', String(totalSettledMB));
+        const prevHwm = parseInt(localStorage.getItem('memory_high_watermark') || '0', 10);
+        localStorage.setItem('memory_high_watermark', String(Math.max(prevHwm, totalSettledMB)));
+        localStorage.setItem('memory_alive', 'true');
       } catch (e) {}
     }
   }
@@ -393,6 +455,9 @@ export class SaturationWorkerPool {
       try {
         localStorage.setItem('memory_tried', String(this.lastTargetMemoryMB));
         localStorage.setItem('memory_used', String(nearestFullWorkerMB));
+        localStorage.setItem('memory_high_watermark', String(nearestFullWorkerMB));
+        // Flag alive as false so that on next boot time this OOM crash threshold is recovered
+        localStorage.setItem('memory_alive', 'false');
       } catch (e) {}
     }
 
@@ -420,11 +485,14 @@ export class SaturationWorkerPool {
       try {
         if (totalMemoryMB > (this.lastSettledMemoryMB || 0)) {
           localStorage.setItem('memory_tried', String(totalMemoryMB));
+          // Mark alive false during allocation escalation
+          localStorage.setItem('memory_alive', 'false');
           if (this.mainSettleTimeout) clearTimeout(this.mainSettleTimeout);
           this.mainSettleTimeout = setTimeout(() => {
             this.lastSettledMemoryMB = totalMemoryMB;
             try {
               localStorage.setItem('memory_used', String(totalMemoryMB));
+              localStorage.setItem('memory_alive', 'true');
             } catch (e) {}
           }, 700);
         } else {
@@ -435,6 +503,7 @@ export class SaturationWorkerPool {
           this.lastSettledMemoryMB = totalMemoryMB;
           localStorage.setItem('memory_tried', String(totalMemoryMB));
           localStorage.setItem('memory_used', String(totalMemoryMB));
+          localStorage.setItem('memory_alive', 'true');
         }
       } catch (e) {}
     }
@@ -476,6 +545,7 @@ export class SaturationWorkerPool {
       try {
         localStorage.setItem('memory_tried', '0');
         localStorage.setItem('memory_used', '0');
+        localStorage.setItem('memory_alive', 'true');
       } catch (e) {}
     }
 

@@ -28,84 +28,42 @@ export const SupportChat: React.FC<SupportChatProps> = ({
   const [stepIndex, setStepIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Set of critiqued permission keys to avoid infinite looping while ensuring every denied permission is critiqued
-  const deliveredCritiquesRef = useRef<Set<string>>(new Set());
-  const auditInitiatedRef = useRef<boolean>(false);
-
-  // Scripted opening messages from Todd
-  const scriptedMessages = [
-    "Hi, I'm Todd from Customer Delight!",
-    "Thanks for visiting our site today!",
-    "If I can help with anything, just let me know :)",
-    "Did you know our premium subscribers read articles 30% faster?",
-    "I noticed you're still reading! Would you like to schedule a 45-minute synchronization call?",
-  ];
-
-  // Function to inspect allowed permissions and identify which were denied
-  const checkPermissions = () => {
-    const list: { key: string; name: string; denied: boolean; critique: string }[] = [];
-
-    // 1. Camera / Optical Surveillance
-    const cameraDismissed = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_permission_dismissed') === 'true';
+  // Generate Todd's classic scripted messages enriched with situational permission context
+  const getSituationalScriptedMessage = (index: number): string => {
     const cameraGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_camera_granted') === 'true';
-    const cameraExplicitDenied = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_camera_granted') === 'false';
-    const cameraDenied = cameraExplicitDenied || (cameraDismissed && !cameraGranted);
-    list.push({
-      key: 'camera',
-      name: 'Optical Webcam Surveillance',
-      denied: cameraDenied,
-      critique: "⚠️ Optical Telemetry Denied: Todd here! Our compliance monitor noticed your webcam is blocked. What exactly are you trying to hide behind that camera lens? Our 836 biometric sponsors require a continuous 60Hz iris feed to verify you're not an automated scraper reading about Gregorian micro-voids.",
-    });
-
-    // 2. Geolocation / GPS Coordinates
-    const locationDecided = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_decided') === 'true';
     const locationGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_granted') === 'true';
-    const locationExplicitDenied = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_granted') === 'false';
-    const locationDenied = locationExplicitDenied || (locationDecided && !locationGranted);
-    list.push({
-      key: 'location',
-      name: 'Sub-Meter GPS Coordinates',
-      denied: locationDenied,
-      critique: "📍 Precision GPS Denied: Todd from Delight again. You refused to transmit sub-meter GPS coordinates! We told our 836 trusted partners you're in a metropolitan area, but your exact living room coordinates are 400% more monetizable. That really hurts our quarterly partner delight KPIs.",
-    });
+    const notifGranted =
+      (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') ||
+      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_notifications_granted') === 'true');
 
-    // 3. Desktop / Mobile Push Notifications
-    let notifDenied = false;
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'denied') notifDenied = true;
+    switch (index) {
+      case 0:
+        return "Hi, I'm Todd from Customer Delight!";
+      case 1:
+        if (!isMidiPlaying) {
+          return "Thanks for visiting our site today! (It sounds so much more delightful when you don't mute our relaxing corporate theme song—it was specifically engineered to increase ad tolerance by 12%!)";
+        }
+        return "Thanks for visiting our site today! We hope our relaxing corporate theme song is stabilizing your chronological mindset—it was specifically engineered to increase ad tolerance by 12%.";
+      case 2:
+        if (!cameraGranted) {
+          return "How is everything going? If you shared your webcam I wouldn't have to ask. If I can help with anything, just let me know :)";
+        }
+        return "How is everything going? I can see you on your webcam feed, looking great! If I can help with anything, just let me know :)";
+      case 3:
+        if (!locationGranted) {
+          return "Did you know our premium subscribers read articles 30% faster? (Of course, that's entirely contingent on sharing your exact location with our 836 partners).";
+        }
+        return "Did you know our premium subscribers read articles 30% faster? (Thanks for sharing your exact location, our advertising partners are delighted)!";
+      case 4:
+        if (!notifGranted) {
+          return "I noticed you're still reading! Would you like to schedule a 45-minute synchronization call? It would be easier to keep in touch if you didn't disable notifications.";
+        }
+        return "I noticed you're still reading! Would you like to schedule a 45-minute synchronization call? We'll ping your desktop notifications directly.";
+      case 5:
+        return "Just checking in again! Remember, complete Customer Delight is a two-way street. You need to be willing to let me delight you.";
+      default:
+        return "I'm always right here in your viewport if you need further paradigm optimizations!";
     }
-    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_notifications_granted') === 'false') {
-      notifDenied = true;
-    }
-    const newsletterDismissed = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_newsletter_dismissed') === 'true';
-    if (newsletterDismissed && (typeof Notification === 'undefined' || Notification.permission !== 'granted')) {
-      notifDenied = true;
-    }
-    list.push({
-      key: 'notifications',
-      name: 'Desktop Push Alerts',
-      denied: notifDenied,
-      critique: "🔔 Push Notifications Blocked: Todd noticed you refused our alerts. How do you expect to receive emergency 3:17 AM Tuesday synchronization alerts when Pope Gregory XIII's void expands? You are actively sabotaging your own chronological alignment.",
-    });
-
-    // 4. Audio Synthesizer
-    list.push({
-      key: 'audio',
-      name: '19-Note Totaka Acoustic Synth',
-      denied: !isMidiPlaying,
-      critique: "🔊 Audio Synthesizer Muted: Todd detected you silenced our aloof 19-note Totaka acoustic stabilization cycle. Muting the synth destabilizes your temporal cortex and deprives your browser of acoustic memory defragmentation. Please unmute immediately.",
-    });
-
-    // 5. Syndicate Cookies
-    const cookieAccepted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_cookie_accepted') === 'true';
-    list.push({
-      key: 'cookies',
-      name: '8-Tier Syndicate Cookies',
-      denied: !cookieAccepted,
-      critique: "🍪 Syndicate Cookies Unsettled: Todd is deeply concerned. You haven't fully embraced our 8-tier ultrasonic keystroke fingerprint cookies. How can we delight you without harvesting your raw device entropy?",
-    });
-
-    return list;
   };
 
   // Auto-scroll inside chat
@@ -119,36 +77,13 @@ export const SupportChat: React.FC<SupportChatProps> = ({
 
     if (messages.length === 0) {
       const timer = setTimeout(() => {
-        deliverToddMessage(scriptedMessages[0]);
+        deliverToddMessage(getSituationalScriptedMessage(0));
         setStepIndex(1);
       }, 2500);
 
       return () => clearTimeout(timer);
     }
   }, [canStart, messages.length]);
-
-  // Todd's Permission Audit: checks granted vs denied permissions and delivers a critical response for each
-  useEffect(() => {
-    if (!canStart || stepIndex < 1 || auditInitiatedRef.current) return;
-    auditInitiatedRef.current = true;
-
-    // Run audit shortly after first greeting
-    const auditTimer = setTimeout(() => {
-      deliverToddMessage("Auditing your browser permissions against syndicate compliance standards... 🔎");
-
-      const auditResults = checkPermissions();
-      const deniedList = auditResults.filter((p) => p.denied && !deliveredCritiquesRef.current.has(p.key));
-
-      deniedList.forEach((item, index) => {
-        setTimeout(() => {
-          deliveredCritiquesRef.current.add(item.key);
-          deliverToddMessage(item.critique);
-        }, (index + 1) * 2800);
-      });
-    }, 3000);
-
-    return () => clearTimeout(auditTimer);
-  }, [canStart, stepIndex, isMidiPlaying]);
 
   // Handle external on-page button trigger ("Todd asks: hey did you need something?")
   useEffect(() => {
@@ -164,16 +99,16 @@ export const SupportChat: React.FC<SupportChatProps> = ({
   useEffect(() => {
     if (!canStart) return;
 
-    if (stepIndex > 0 && stepIndex < scriptedMessages.length) {
-      const delay = stepIndex === 1 ? 16000 : stepIndex === 2 ? 18000 : 24000;
+    if (stepIndex > 0 && stepIndex <= 5) {
+      const delay = stepIndex === 1 ? 6500 : stepIndex === 2 ? 8500 : stepIndex === 3 ? 10000 : 13000;
       const timer = setTimeout(() => {
-        deliverToddMessage(scriptedMessages[stepIndex]);
+        deliverToddMessage(getSituationalScriptedMessage(stepIndex));
         setStepIndex((prev) => prev + 1);
       }, delay);
 
       return () => clearTimeout(timer);
     }
-  }, [stepIndex, canStart]);
+  }, [stepIndex, canStart, isMidiPlaying]);
 
   const deliverToddMessage = (text: string) => {
     // Chat receive sound effect
@@ -211,15 +146,23 @@ export const SupportChat: React.FC<SupportChatProps> = ({
     ]);
     setInputText('');
 
-    // Todd's helpful reply incorporating critical permission review
+    // Todd's helpful reply incorporating situational permission review
     setTimeout(() => {
-      const audit = checkPermissions();
-      const stillDenied = audit.filter((p) => p.denied);
+      const cameraGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_camera_granted') === 'true';
+      const locationGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_granted') === 'true';
+      const notifGranted =
+        (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') ||
+        (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_notifications_granted') === 'true');
+
+      const deniedList: string[] = [];
+      if (!cameraGranted) deniedList.push('optical webcam feed');
+      if (!locationGranted) deniedList.push('sub-meter GPS');
+      if (!notifGranted) deniedList.push('push alerts');
+      if (!isMidiPlaying) deniedList.push('relaxing corporate theme song');
 
       let reply = '';
-      if (stillDenied.length > 0 && Math.random() > 0.3) {
-        const deniedNames = stillDenied.map((p) => p.name).join(' and ');
-        reply = `That's a fantastic inquiry! However, Todd's compliance dashboard shows you still have ${deniedNames} blocked. For optimal Customer Delight, surrender full telemetry compliance immediately!`;
+      if (deniedList.length > 0 && Math.random() > 0.4) {
+        reply = `That's a fantastic inquiry! However, Todd's compliance dashboard shows you still have ${deniedList.join(' and ')} disabled. For optimal Customer Delight, surrender full telemetry compliance immediately!`;
       } else {
         const cannedReplies = [
           "That's a fantastic inquiry! Our senior retention consultants are analyzing your intent as we speak.",
@@ -336,7 +279,7 @@ export const SupportChat: React.FC<SupportChatProps> = ({
               resumeAudioContext();
               setIsOpen(true);
               if (messages.length === 0) {
-                deliverToddMessage(scriptedMessages[0]);
+                deliverToddMessage(getSituationalScriptedMessage(0));
               }
             }}
             className="group relative flex items-center gap-2 p-1.5 pr-4 bg-white rounded-full shadow-2xl border-2 border-blue-500 hover:scale-105 active:scale-95 transition-all cursor-pointer"

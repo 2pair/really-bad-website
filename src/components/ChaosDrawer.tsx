@@ -21,6 +21,9 @@ interface ChaosDrawerProps {
   memoryMB: number;
   storageMB: number;
   maxMemoryMB?: number;
+  highWatermarkMB?: number;
+  isOomClamped?: boolean;
+  onUnlockCeiling?: () => void;
   onCpuChange: (val: number) => void;
   onMemoryChange: (val: number) => void;
   onStorageChange: (val: number) => void;
@@ -32,7 +35,10 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
   cpu,
   memoryMB,
   storageMB,
-  maxMemoryMB = 4096,
+  maxMemoryMB = 16384,
+  highWatermarkMB = 0,
+  isOomClamped = false,
+  onUnlockCeiling,
   onCpuChange,
   onMemoryChange,
   onStorageChange,
@@ -104,6 +110,9 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
             <span className="flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-blue-400" />
               MEM: <strong className="text-neutral-200">{memoryMB} MB</strong>
+            </span>
+            <span className="flex items-center gap-1 text-amber-400">
+              HWM: <strong className="text-amber-300 font-bold">{highWatermarkMB || memoryMB} MB</strong>
             </span>
             <span className="flex items-center gap-1">
               <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
@@ -220,9 +229,34 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
                   {memoryMB} MB
                 </span>
               </div>
-              <p className="text-xs text-neutral-400 mb-4">
-                Sequential 1024MB worker fleet. Marshal monitors for OOM and clamps maximum slider limit to nearest full worker high watermark.
+              <p className="text-xs text-neutral-400 mb-2">
+                Sequential 1024MB worker fleet. Marshal logs memory tried and memory used before allocation, setting high watermark and auto-clamping on OOM crash.
               </p>
+
+              {/* Prominent High Watermark Status Badge */}
+              <div className="mb-3 p-2 rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-400 font-bold">HIGH WATERMARK:</span>
+                  <span className="text-white font-black">{highWatermarkMB || memoryMB} MB</span>
+                  <span className="text-neutral-400">({(((highWatermarkMB || memoryMB) / 1024)).toFixed(2)} GB)</span>
+                  {isOomClamped && (
+                    <span className="text-[10px] bg-red-950 text-red-300 border border-red-700 px-1.5 py-0.5 rounded font-bold">
+                      OOM CLAMPED
+                    </span>
+                  )}
+                </div>
+                {isOomClamped && onUnlockCeiling && (
+                  <button
+                    type="button"
+                    onClick={onUnlockCeiling}
+                    className="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase transition-colors cursor-pointer"
+                    title="Unlock slider limit to 16 GB for further testing"
+                  >
+                    Reset to 16GB
+                  </button>
+                )}
+              </div>
+
               <input
                 type="range"
                 min="0"
@@ -236,7 +270,7 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
             </div>
             <div className="mt-3 pt-3 border-t border-neutral-800 flex justify-between text-[11px] font-mono text-neutral-500">
               <span>Allocated: {formatBytes(workerMetrics.totalMemoryBytes)}</span>
-              <span>Watermark Limit: {maxMemoryMB} MB ({(maxMemoryMB / 1024).toFixed(1)} GB)</span>
+              <span>Ceiling Limit: {maxMemoryMB} MB ({(maxMemoryMB / 1024).toFixed(1)} GB)</span>
             </div>
           </div>
 

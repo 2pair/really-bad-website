@@ -3,6 +3,7 @@ import {
   ShieldCheck,
   Bell,
   Camera,
+  MapPin,
   X,
   FileText,
   ChevronDown,
@@ -10,6 +11,9 @@ import {
   Lock,
   AlertTriangle,
   Eye,
+  Terminal,
+  RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { useAudioController } from '../context/AudioControllerContext.tsx';
 
@@ -105,13 +109,14 @@ export const Popups: React.FC<PopupsProps> = ({
 
   // 2. Cookie blocking overlay:
   const [isCookieBlockerActive, setIsCookieBlockerActive] = useState(() => !isSessionCookieAccepted());
-  const [showCookieModal, setShowCookieModal] = useState(false);
+  // The cookie banner is always the top item shown on page load immediately
+  const [showCookieModal, setShowCookieModal] = useState(() => !isSessionCookieAccepted());
   const [cookieAccepted, setCookieAccepted] = useState(() => isSessionCookieAccepted());
 
-  // Ad Blocker popup (can be triggered on page/article transitions)
+  // Ad Blocker popup (triggered on scroll or page/article transitions)
   const [showAdBlockerModal, setShowAdBlockerModal] = useState(false);
 
-  // Trigger ad blocker notice on article transition if requested
+  // Trigger ad blocker notice on scroll or article transition if requested
   useEffect(() => {
     if (triggerAdBlockNoticeCount > 0) {
       setShowAdBlockerModal(true);
@@ -152,16 +157,6 @@ export const Popups: React.FC<PopupsProps> = ({
     playSwoosh();
   };
 
-  // Delay before cookie banner visually animates in at the bottom (while blocker is active immediately!)
-  useEffect(() => {
-    if (isSessionCookieAccepted()) return;
-    const timer = setTimeout(() => {
-      setShowCookieModal(true);
-    }, 1400);
-
-    return () => clearTimeout(timer);
-  }, []);
-
   // When cookie popup is accepted: starts audio synth and releases screen interaction blocker
   const handleAcceptCookies = () => {
     triggerAudioStart();
@@ -177,12 +172,6 @@ export const Popups: React.FC<PopupsProps> = ({
     if (onCookieAccepted) {
       onCookieAccepted();
     }
-
-    // Trigger Ad Blocker Detection popup after 3.2 seconds of browsing
-    setTimeout(() => {
-      setShowAdBlockerModal(true);
-      playSwoosh();
-    }, 3200);
   };
 
   const requestNotificationPermission = () => {
@@ -310,43 +299,295 @@ export const Popups: React.FC<PopupsProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Request optical webcam telemetry specifically
-  const handleRequestCameraPermission = () => {
+  const [cameraStatus, setCameraStatus] = useState<'idle' | 'granted' | 'denied'>(() => {
+    if (typeof sessionStorage !== 'undefined') {
+      const g = sessionStorage.getItem('rbw_camera_granted');
+      if (g === 'true') return 'granted';
+      if (g === 'false') return 'denied';
+    }
+    return 'idle';
+  });
+
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'granted' | 'denied'>(() => {
+    if (typeof sessionStorage !== 'undefined') {
+      const g = sessionStorage.getItem('rbw_location_granted');
+      if (g === 'true') return 'granted';
+      if (g === 'false') return 'denied';
+    }
+    return 'idle';
+  });
+
+  const [notifStatus, setNotifStatus] = useState<'idle' | 'granted' | 'denied'>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') return 'granted';
+      if (Notification.permission === 'denied') return 'denied';
+    }
+    if (typeof sessionStorage !== 'undefined') {
+      const g = sessionStorage.getItem('rbw_notifications_granted');
+      if (g === 'true') return 'granted';
+      if (g === 'false') return 'denied';
+    }
+    return 'idle';
+  });
+
+  // Live permissions.query state
+  const [queryStatus, setQueryStatus] = useState<{
+    camera: string;
+    geolocation: string;
+    notifications: string;
+  }>({
+    camera: 'unqueried',
+    geolocation: 'unqueried',
+    notifications: 'unqueried',
+  });
+
+  // Real-time debug console entries
+  const [debugLogs, setDebugLogs] = useState<Array<{
+    id: string;
+    timestamp: string;
+    api: string;
+    type: 'success' | 'error' | 'info';
+    output: string;
+  }>>([
+    {
+      id: 'init-0',
+      timestamp: new Date().toLocaleTimeString(),
+      api: 'system',
+      type: 'info',
+      output: 'Permissions diagnostics engine loaded. Ready to test browser APIs.',
+    },
+  ]);
+
+  const addDebugLog = (api: string, type: 'success' | 'error' | 'info', output: string) => {
+    setDebugLogs((prev) => [
+      {
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: new Date().toLocaleTimeString(),
+        api,
+        type,
+        output,
+      },
+      ...prev.slice(0, 24),
+    ]);
+  };
+
+  // Query navigator.permissions.query for camera, geolocation, and notifications
+  const refreshPermissionsQuery = async () => {
+    addDebugLog('query', 'info', 'Querying navigator.permissions.query({ name })...');
+    const next = { camera: 'unknown', geolocation: 'unknown', notifications: 'unknown' };
+
+    if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
+      // 1. Geolocation
+      try {
+        const geo = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+        next.geolocation = geo.state;
+        addDebugLog('query', 'info', `navigator.permissions.query({ name: 'geolocation' }) -> "${geo.state}"`);
+        geo.onchange = () => {
+          setQueryStatus((prev) => ({ ...prev, geolocation: geo.state }));
+          addDebugLog('query', 'info', `Geolocation permission state changed to: "${geo.state}"`);
+        };
+      } catch (err: any) {
+        next.geolocation = `error (${err?.message || 'unsupported'})`;
+        addDebugLog('query', 'error', `geolocation query error: ${err?.message || err}`);
+      }
+
+      // 2. Camera
+      try {
+        const cam = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        next.camera = cam.state;
+        addDebugLog('query', 'info', `navigator.permissions.query({ name: 'camera' }) -> "${cam.state}"`);
+        cam.onchange = () => {
+          setQueryStatus((prev) => ({ ...prev, camera: cam.state }));
+          addDebugLog('query', 'info', `Camera permission state changed to: "${cam.state}"`);
+        };
+      } catch (err: any) {
+        next.camera = `unsupported (${err?.message || 'not in standard'})`;
+        addDebugLog('query', 'info', `camera query note: ${err?.message || 'unsupported in this engine'}`);
+      }
+
+      // 3. Notifications
+      try {
+        const notif = await navigator.permissions.query({ name: 'notifications' as PermissionName });
+        next.notifications = notif.state;
+        addDebugLog('query', 'info', `navigator.permissions.query({ name: 'notifications' }) -> "${notif.state}"`);
+        notif.onchange = () => {
+          setQueryStatus((prev) => ({ ...prev, notifications: notif.state }));
+          addDebugLog('query', 'info', `Notifications permission state changed to: "${notif.state}"`);
+        };
+      } catch (err: any) {
+        const fallback = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+        next.notifications = fallback;
+        addDebugLog('query', 'info', `notifications query: fallback to Notification.permission -> "${fallback}"`);
+      }
+    } else {
+      next.camera = 'permissions.query unsupported';
+      next.geolocation = 'permissions.query unsupported';
+      next.notifications = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+      addDebugLog('query', 'error', 'navigator.permissions.query is not supported in this runtime environment.');
+    }
+
+    setQueryStatus(next);
+  };
+
+  useEffect(() => {
+    refreshPermissionsQuery();
+  }, []);
+
+  // 1. Request optical webcam telemetry specifically
+  // navigator.mediaDevices.getUserMedia returns MediaStream on success or throws on error
+  const handleRequestCameraPermission = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     resumeAudioContext();
+    addDebugLog('camera', 'info', 'Invoking navigator.mediaDevices.getUserMedia({ video: true, audio: false })...');
 
     if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         navigator.mediaDevices
           .getUserMedia({ video: true, audio: false })
-          .then((stream) => {
+          .then((stream: MediaStream) => {
             if (typeof sessionStorage !== 'undefined') {
               sessionStorage.setItem('rbw_camera_granted', 'true');
             }
+            setCameraStatus('granted');
             setCameraStream(stream);
             if (onGrantCamera) onGrantCamera(stream);
+
+            const trackInfo = stream.getVideoTracks().map((t) => `${t.label || 'VideoTrack'} (id=${t.id.slice(0, 8)}, readyState=${t.readyState})`).join(', ');
+            addDebugLog(
+              'camera',
+              'success',
+              `MediaStream returned [id="${stream.id.slice(0, 12)}...", active=${stream.active}, tracks=[${trackInfo}]]`
+            );
+            refreshPermissionsQuery();
           })
-          .catch((err) => {
+          .catch((err: any) => {
             if (typeof sessionStorage !== 'undefined') {
               sessionStorage.setItem('rbw_camera_granted', 'false');
             }
+            setCameraStatus('denied');
             console.warn('Camera permission denied or unavailable', err);
+            addDebugLog('camera', 'error', `getUserMedia threw: ${err.name} - ${err.message}`);
+            refreshPermissionsQuery();
           });
-      } catch (err) {
+      } catch (err: any) {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem('rbw_camera_granted', 'false');
         }
+        setCameraStatus('denied');
         console.warn('Camera error', err);
+        addDebugLog('camera', 'error', `getUserMedia synchronous throw: ${err?.name} - ${err?.message}`);
       }
+    } else {
+      addDebugLog('camera', 'error', 'navigator.mediaDevices.getUserMedia is undefined in this environment/iframe context.');
     }
+  };
 
-    // Close prompt after giving browser time to display native dialog
-    setTimeout(() => {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('rbw_permission_dismissed', 'true');
+  // 2. Request Geolocation synchronously on direct user gesture
+  // navigator.geolocation.getCurrentPosition returns a position on success or an error on fail
+  const handleRequestGeolocationSync = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    resumeAudioContext();
+    addDebugLog('geolocation', 'info', 'Invoking navigator.geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 })...');
+
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      try {
+        navigator.geolocation.getCurrentPosition(
+          (pos: GeolocationPosition) => {
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('rbw_location_granted', 'true');
+              sessionStorage.setItem('rbw_location_decided', 'true');
+            }
+            setGeoStatus('granted');
+            const posOutput = `Position returned [lat=${pos.coords.latitude.toFixed(6)}, lon=${pos.coords.longitude.toFixed(6)}, accuracy=±${pos.coords.accuracy}m, timestamp=${pos.timestamp}]`;
+            addDebugLog('geolocation', 'success', posOutput);
+            refreshPermissionsQuery();
+          },
+          (err: GeolocationPositionError) => {
+            console.warn('Geolocation denied or timed out:', err);
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('rbw_location_granted', 'false');
+              sessionStorage.setItem('rbw_location_decided', 'true');
+            }
+            setGeoStatus('denied');
+            const codeNames: Record<number, string> = { 1: 'PERMISSION_DENIED', 2: 'POSITION_UNAVAILABLE', 3: 'TIMEOUT' };
+            const errOutput = `Geolocation error [code=${err.code} ${codeNames[err.code] || 'UNKNOWN'}]: ${err.message}`;
+            addDebugLog('geolocation', 'error', errOutput);
+            refreshPermissionsQuery();
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        );
+      } catch (err: any) {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('rbw_location_granted', 'false');
+          sessionStorage.setItem('rbw_location_decided', 'true');
+        }
+        setGeoStatus('denied');
+        addDebugLog('geolocation', 'error', `getCurrentPosition threw: ${err?.name} - ${err?.message}`);
       }
-      setShowPermissionPrompt(false);
-      setPermissionDismissed(true);
-    }, 1200);
+    } else {
+      addDebugLog('geolocation', 'error', 'navigator.geolocation is undefined in this browser.');
+    }
+  };
+
+  // 3. Request Notification permission synchronously on direct user gesture
+  // Notification.requestPermission returns a string for 'granted', 'denied', or 'default'
+  const handleRequestNotificationSync = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    resumeAudioContext();
+    addDebugLog('notifications', 'info', 'Invoking Notification.requestPermission()...');
+
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const req = Notification.requestPermission();
+        if (req && typeof (req as any).then === 'function') {
+          (req as Promise<NotificationPermission>)
+            .then((status: string) => {
+              addDebugLog('notifications', status === 'granted' ? 'success' : 'error', `Notification.requestPermission() returned string: "${status}"`);
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('rbw_notifications_granted', status === 'granted' ? 'true' : 'false');
+              }
+              setNotifStatus(status === 'granted' ? 'granted' : 'denied');
+              if (status === 'granted') {
+                try {
+                  new Notification('REALLY BAD WEBSITE', {
+                    body: 'Priority notification enabled! Tab exit alert is now armed.',
+                    icon: '/favicon.ico',
+                  });
+                } catch (e: any) {
+                  addDebugLog('notifications', 'error', `Notification constructor error: ${e?.message}`);
+                }
+              }
+              refreshPermissionsQuery();
+            })
+            .catch((err: any) => {
+              addDebugLog('notifications', 'error', `Notification.requestPermission rejected: ${err?.message || err}`);
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('rbw_notifications_granted', 'false');
+              }
+              setNotifStatus('denied');
+              refreshPermissionsQuery();
+            });
+        } else {
+          // Callback-based signature for older browsers
+          Notification.requestPermission((status: string) => {
+            addDebugLog('notifications', status === 'granted' ? 'success' : 'error', `Notification.requestPermission callback returned string: "${status}"`);
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('rbw_notifications_granted', status === 'granted' ? 'true' : 'false');
+            }
+            setNotifStatus(status === 'granted' ? 'granted' : 'denied');
+            refreshPermissionsQuery();
+          });
+        }
+      } catch (err: any) {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem('rbw_notifications_granted', 'false');
+        }
+        setNotifStatus('denied');
+        addDebugLog('notifications', 'error', `Notification.requestPermission threw: ${err?.message}`);
+      }
+    } else {
+      addDebugLog('notifications', 'error', 'window.Notification is undefined in this browser environment.');
+    }
   };
 
   return (
@@ -360,7 +601,7 @@ export const Popups: React.FC<PopupsProps> = ({
       */}
       {isCookieBlockerActive && (
         <div
-          className="fixed inset-0 z-45 bg-black/60 backdrop-blur-xs transition-opacity duration-300 pointer-events-auto"
+          className="fixed inset-0 z-65 bg-black/60 backdrop-blur-xs transition-opacity duration-300 pointer-events-auto"
           title="Interaction disabled: You must accept cookies first."
           onClick={() => {
             if (!showCookieModal) {
@@ -382,6 +623,7 @@ export const Popups: React.FC<PopupsProps> = ({
         ========================================================================
         2. COOKIE POPUP: FULL-WIDTH BANNER ATTACHED TO BOTTOM OF SCREEN
         - Spans 100% width attached to screen bottom
+        - ALWAYS the top item shown on page load (z-70)
         - Mentions 836 trusted partners & future partners
         - 8 categories
         - Dark patterns: Accept All is prominent button; partial/reject cookies is a faint regular link!
@@ -389,7 +631,7 @@ export const Popups: React.FC<PopupsProps> = ({
       */}
       {isCookieBlockerActive && showCookieModal && (
         <div
-          className="fixed bottom-0 left-0 right-0 w-full z-50 bg-neutral-950 border-t-4 border-blue-600 shadow-[0_-12px_45px_rgba(0,0,0,0.9)] p-4 sm:p-5 md:p-6 text-white max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+          className="fixed bottom-0 left-0 right-0 w-full z-70 bg-neutral-950 border-t-4 border-blue-600 shadow-[0_-12px_45px_rgba(0,0,0,0.9)] p-4 sm:p-5 md:p-6 text-white max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="max-w-6xl mx-auto relative">
@@ -691,7 +933,7 @@ export const Popups: React.FC<PopupsProps> = ({
         ========================================================================
       */}
       {showPermissionPrompt && (
-        <div className="fixed top-4 right-4 z-45 max-w-sm w-full bg-neutral-900 border-2 border-blue-500 text-white rounded-xl shadow-2xl p-4 animate-in slide-in-from-top-4 duration-200">
+        <div className="fixed top-4 right-4 z-52 max-w-sm w-full bg-neutral-900 border-2 border-blue-500 text-white rounded-xl shadow-2xl p-4 animate-in slide-in-from-top-4 duration-200">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <span className="p-1.5 bg-blue-600/30 text-blue-400 rounded-lg">
@@ -714,23 +956,159 @@ export const Popups: React.FC<PopupsProps> = ({
             </button>
           </div>
           <p className="text-[11px] text-neutral-300 mt-2 leading-relaxed">
-            Click below to verify live optical facial telemetry via webcam for syndicate partner compliance:
+            Federal and syndicate advertising compliance mandates explicit verification of your biometric, spatial, and push channels:
           </p>
 
           <div className="flex flex-col gap-2 mt-3">
+            {/* 1. Camera / Optical Telemetry */}
             <button
+              type="button"
               onClick={handleRequestCameraPermission}
-              className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-extrabold text-xs uppercase rounded-lg shadow-lg cursor-pointer tracking-wider animate-pulse flex items-center justify-center gap-2"
+              className={`w-full py-2 px-3 ${
+                cameraStatus === 'granted'
+                  ? 'bg-emerald-700 text-emerald-100'
+                  : cameraStatus === 'denied'
+                  ? 'bg-red-900/80 text-red-200 border border-red-700'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 text-white animate-pulse'
+              } font-extrabold text-[11px] uppercase rounded-lg shadow cursor-pointer tracking-wider flex items-center justify-between`}
             >
-              <Camera className="w-3.5 h-3.5 text-blue-200" />
-              <span>⚡ ALLOW OPTICAL WEBCAM TELEMETRY</span>
+              <div className="flex items-center gap-2">
+                <Camera className="w-3.5 h-3.5" />
+                <span>1. OPTICAL WEBCAM FEED</span>
+              </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40">
+                {cameraStatus === 'granted' ? '✅ ACTIVE' : cameraStatus === 'denied' ? '❌ BLOCKED' : '⚡ ALLOW'}
+              </span>
             </button>
+
+            {/* 2. Geolocation / Precision GPS */}
+            <button
+              type="button"
+              onClick={handleRequestGeolocationSync}
+              className={`w-full py-2 px-3 ${
+                geoStatus === 'granted'
+                  ? 'bg-emerald-700 text-emerald-100'
+                  : geoStatus === 'denied'
+                  ? 'bg-red-900/80 text-red-200 border border-red-700'
+                  : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 text-white animate-pulse'
+              } font-extrabold text-[11px] uppercase rounded-lg shadow cursor-pointer tracking-wider flex items-center justify-between`}
+            >
+              <div className="flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5" />
+                <span>2. SUB-METER GPS COORDS</span>
+              </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40">
+                {geoStatus === 'granted' ? '✅ STREAMING' : geoStatus === 'denied' ? '❌ DENIED' : '📍 BROADCAST'}
+              </span>
+            </button>
+
+            {/* 3. Real-Time Push Notifications */}
+            <button
+              type="button"
+              onClick={handleRequestNotificationSync}
+              className={`w-full py-2 px-3 ${
+                notifStatus === 'granted'
+                  ? 'bg-emerald-700 text-emerald-100'
+                  : notifStatus === 'denied'
+                  ? 'bg-red-900/80 text-red-200 border border-red-700'
+                  : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 text-white animate-pulse'
+              } font-extrabold text-[11px] uppercase rounded-lg shadow cursor-pointer tracking-wider flex items-center justify-between`}
+            >
+              <div className="flex items-center gap-2">
+                <Bell className="w-3.5 h-3.5" />
+                <span>3. REAL-TIME PUSH ALERTS</span>
+              </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40">
+                {notifStatus === 'granted' ? '✅ ENABLED' : notifStatus === 'denied' ? '❌ DISABLED' : '🔔 SUBSCRIBE'}
+              </span>
+            </button>
+
+            {/* Live permissions.query Status Bar */}
+            <div className="mt-2 p-2 bg-black/60 rounded-lg border border-neutral-800 text-[10px] font-mono">
+              <div className="flex items-center justify-between text-neutral-400 mb-1">
+                <span className="font-bold text-neutral-300 flex items-center gap-1">
+                  <Terminal className="w-3 h-3 text-blue-400" />
+                  <span>navigator.permissions.query()</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={refreshPermissionsQuery}
+                  className="text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer"
+                  title="Re-run permissions.query()"
+                >
+                  <RefreshCw className="w-2.5 h-2.5" />
+                  <span>Re-query</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-1 text-[9px] text-center">
+                <div className="bg-neutral-900 p-1 rounded border border-neutral-800">
+                  <span className="text-neutral-500 block">cam:</span>
+                  <span className={queryStatus.camera === 'granted' ? 'text-emerald-400 font-bold' : queryStatus.camera === 'denied' ? 'text-red-400' : 'text-amber-400'}>
+                    {queryStatus.camera}
+                  </span>
+                </div>
+                <div className="bg-neutral-900 p-1 rounded border border-neutral-800">
+                  <span className="text-neutral-500 block">geo:</span>
+                  <span className={queryStatus.geolocation === 'granted' ? 'text-emerald-400 font-bold' : queryStatus.geolocation === 'denied' ? 'text-red-400' : 'text-amber-400'}>
+                    {queryStatus.geolocation}
+                  </span>
+                </div>
+                <div className="bg-neutral-900 p-1 rounded border border-neutral-800">
+                  <span className="text-neutral-500 block">notif:</span>
+                  <span className={queryStatus.notifications === 'granted' ? 'text-emerald-400 font-bold' : queryStatus.notifications === 'denied' ? 'text-red-400' : 'text-amber-400'}>
+                    {queryStatus.notifications}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Permissions Debug Output Console */}
+            <div className="mt-1 p-2 bg-black/90 rounded-lg border border-neutral-800 font-mono text-[9px]">
+              <div className="flex items-center justify-between pb-1 border-b border-neutral-800 text-neutral-400">
+                <span className="font-bold text-neutral-300">Live API Return Stream</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] text-neutral-500">{debugLogs.length} events</span>
+                  <button
+                    type="button"
+                    onClick={() => setDebugLogs([])}
+                    className="text-neutral-500 hover:text-neutral-300 cursor-pointer"
+                    title="Clear console"
+                  >
+                    <Trash2 className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-1.5 max-h-32 overflow-y-auto space-y-1 divide-y divide-neutral-900/80 pr-1">
+                {debugLogs.length === 0 ? (
+                  <div className="text-neutral-600 italic py-1">No API calls recorded yet. Tap a permission above to test.</div>
+                ) : (
+                  debugLogs.map((log) => (
+                    <div key={log.id} className="pt-1 first:pt-0 leading-tight break-all">
+                      <span className="text-neutral-600 mr-1.5">{log.timestamp}</span>
+                      <span className={`px-1 py-0.2 rounded text-[8px] mr-1 ${
+                        log.api === 'camera' ? 'bg-blue-950 text-blue-300' :
+                        log.api === 'geolocation' ? 'bg-amber-950 text-amber-300' :
+                        log.api === 'notifications' ? 'bg-purple-950 text-purple-300' : 'bg-neutral-800 text-neutral-400'
+                      }`}>
+                        {log.api}
+                      </span>
+                      <span className={
+                        log.type === 'success' ? 'text-emerald-400 font-medium' :
+                        log.type === 'error' ? 'text-rose-400' : 'text-neutral-300'
+                      }>
+                        {log.output}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
 
             {/* PRIVACY POLICY BUTTON IN PERMISSIONS WINDOW */}
             <button
               type="button"
               onClick={() => setShowPrivacyPolicyModal(true)}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-neutral-800 hover:bg-neutral-700 text-amber-300 text-[10px] font-mono rounded border border-neutral-700 transition-colors cursor-pointer"
+              className="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-neutral-800 hover:bg-neutral-700 text-amber-300 text-[10px] font-mono rounded border border-neutral-700 transition-colors cursor-pointer mt-1"
             >
               <FileText className="w-3 h-3 text-amber-400" />
               <span>Review 836-Partner Privacy Policy (Mandatory)</span>
@@ -743,7 +1121,7 @@ export const Popups: React.FC<PopupsProps> = ({
                 onClick={handleClosePermissions}
                 className="text-center text-[10px] text-neutral-500 hover:text-neutral-300 underline font-normal bg-transparent border-none p-0 inline cursor-pointer"
               >
-                Deny permissions and risk severe functional breakdown
+                Deny all permissions and risk severe functional breakdown
               </button>
             </div>
           </div>
@@ -1109,6 +1487,27 @@ export const Popups: React.FC<PopupsProps> = ({
           </div>
         </div>
       )}
+
+      {/* Persistent floating trigger button for Permissions & Live Debug Panel */}
+      <div className="fixed bottom-4 right-4 z-40">
+        <button
+          type="button"
+          onClick={() => {
+            setShowPermissionPrompt(true);
+            setPermissionDismissed(false);
+            refreshPermissionsQuery();
+          }}
+          className="bg-neutral-900/95 hover:bg-neutral-800 border-2 border-blue-500 text-neutral-100 hover:text-white px-3 py-2 rounded-xl text-xs font-mono font-bold shadow-[0_8px_30px_rgba(0,0,0,0.8)] flex items-center gap-2 cursor-pointer transition-all active:scale-95 group backdrop-blur-sm"
+          title="Open Live Permissions & Diagnostics Sandbox"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+          </span>
+          <Terminal className="w-3.5 h-3.5 text-blue-400 group-hover:rotate-12 transition-transform" />
+          <span>⚡ Permissions & Debug Panel</span>
+        </button>
+      </div>
     </>
   );
 };

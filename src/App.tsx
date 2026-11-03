@@ -10,31 +10,66 @@ import { BadArticle } from './components/BadArticle.tsx';
 import { SupportChat } from './components/SupportChat.tsx';
 import { Popups } from './components/Popups.tsx';
 import { SaturationWorkerPool, WorkerMetrics } from './utils/workerManager.ts';
+import { initConsoleChaos } from './utils/consoleChaos.ts';
+import { cleanupPreviousSessionStorage, setupTabExitNotification } from './utils/storageCleanup.ts';
 
 function AppContent() {
-  // Query system memory via deviceMemory (GB -> MB) with 4096MB fallback
-  const initialSystemMemoryMB = typeof navigator !== 'undefined' && (navigator as any).deviceMemory
-    ? (navigator as any).deviceMemory * 1024
-    : 4096;
+  // Unconstrained default memory testing ceiling: 16 GB (16384 MB)
+  const defaultTestingCeilingMB = 16384;
+
+  const [isOomClamped, setIsOomClamped] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const tried = parseInt(localStorage.getItem('memory_tried') || '0', 10);
+      const used = parseInt(localStorage.getItem('memory_used') || '0', 10);
+      const wasAlive = localStorage.getItem('memory_alive') === 'true';
+      // Only lock in if memory was attempted, the prior session died before heartbeat confirmation (!wasAlive), and tried > used
+      return tried > 0 && !wasAlive && tried > used;
+    }
+    return false;
+  });
+
+  const [highWatermarkMB, setHighWatermarkMB] = useState<number>(() => {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      const hwm = localStorage.getItem('memory_high_watermark') || localStorage.getItem('memory_used');
+      if (hwm) return parseInt(hwm, 10);
+    }
+    return 0;
+  });
 
   // On page load, first check localStorage memory log (OOM kill recovery on iOS/mobile)
+  // Locking in the max should ONLY be at boot time when there is existing unrecovered memory threshold in persistent storage.
   const [maxMemoryMB, setMaxMemoryMB] = useState<number>(() => {
     if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
       try {
         const triedStr = localStorage.getItem('memory_tried');
         const usedStr = localStorage.getItem('memory_used');
+        const wasAlive = localStorage.getItem('memory_alive') === 'true';
         const tried = triedStr ? parseInt(triedStr, 10) : 0;
         const used = usedStr ? parseInt(usedStr, 10) : 0;
-        if (tried > used) {
-          console.warn(`[OOM Log Recovery] Detected prior crash: memory_tried=${tried}MB > memory_used=${used}MB. Setting slider max to ${used}MB.`);
+        if (tried > 0 && !wasAlive && tried > used) {
+          console.warn(`[OOM Boot Recovery] Detected crash in previous session: memory_tried=${tried}MB > memory_used=${used}MB (alive=false). Clamping slider max to ${used}MB.`);
           return Math.max(128, used);
         }
       } catch (e) {
         console.warn('Failed to read localStorage memory log', e);
       }
     }
-    return initialSystemMemoryMB;
+    return defaultTestingCeilingMB;
   });
+
+  // Initialize console chaos, cleanup previous session storage, register tab exit notification, and mark session alive
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      // Mark current session as alive
+      localStorage.setItem('memory_alive', 'true');
+    }
+    initConsoleChaos();
+    cleanupPreviousSessionStorage();
+    const cleanupExitNotification = setupTabExitNotification();
+    return () => {
+      cleanupExitNotification();
+    };
+  }, []);
 
   // Resource saturation targets
   const [cpu, setCpu] = useState<number>(0); // 0 to 99%
@@ -86,7 +121,7 @@ function AppContent() {
     totalMemoryBytes: 0,
     totalStorageBytes: 0,
     activeWorkers: 0,
-    concurrencyLimit: Math.max(4, Math.ceil(initialSystemMemoryMB / 1024)),
+    concurrencyLimit: Math.max(4, Math.ceil(defaultTestingCeilingMB / 1024)),
   });
 
   // Support chat external trigger
@@ -106,10 +141,17 @@ function AppContent() {
       maxMemoryMB,
       (metrics) => {
         setWorkerMetrics(metrics);
+        const currentMB = Math.round(metrics.totalMemoryBytes / (1024 * 1024));
+        if (currentMB > highWatermarkMB) {
+          setHighWatermarkMB(currentMB);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('memory_high_watermark', String(currentMB));
+          }
+        }
       },
-      (newMaxMB) => {
-        setMaxMemoryMB(newMaxMB);
-        setMemoryMB((prev) => Math.min(prev, newMaxMB));
+      (hwmMB) => {
+        // High watermark report from worker heartbeat - updates display readout without reducing runtime max
+        setHighWatermarkMB((prev) => Math.max(prev, hwmMB));
       }
     );
     poolRef.current = pool;
@@ -117,7 +159,17 @@ function AppContent() {
     return () => {
       pool.terminate();
     };
-  }, [initialSystemMemoryMB]);
+  }, []);
+
+  const handleUnlockCeiling = () => {
+    setIsOomClamped(false);
+    setMaxMemoryMB(defaultTestingCeilingMB);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('memory_tried', '0');
+      localStorage.setItem('memory_used', '0');
+      localStorage.setItem('memory_alive', 'true');
+    }
+  };
 
   // Sync targets to web workers
   useEffect(() => {
@@ -126,28 +178,34 @@ function AppContent() {
     }
   }, [cpu, memoryMB, storageMB]);
 
-  // Track user scroll to satisfy chat requirement and escalate sliders
+  // Track user scroll based on em: scales similarly across displays, triggers ad-blocker before Todd
   const lastScrollYRef = useRef(0);
+  const adBlockerTriggeredOnScrollRef = useRef(false);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY;
-      if (currentY > 40 && !hasScrolled) {
+      const rootFontSize =
+        (typeof document !== 'undefined' && parseFloat(getComputedStyle(document.documentElement).fontSize)) || 16;
+
+      // Initial scroll detection threshold (2em)
+      if (currentY > 2 * rootFontSize && !hasScrolled) {
         setHasScrolled(true);
       }
 
-      const delta = Math.abs(currentY - lastScrollYRef.current);
-      if (delta > 220) {
-        lastScrollYRef.current = currentY;
+      // Trigger ad blocker popup just after start scrolling (3.5em), before Todd triggers!
+      if (currentY > 3.5 * rootFontSize && !adBlockerTriggeredOnScrollRef.current) {
+        adBlockerTriggeredOnScrollRef.current = true;
+        setAdBlockNoticeCount((prev) => prev + 1);
+      }
 
-        // Pick one randomly to escalate
-        const choice = Math.floor(Math.random() * 3);
-        if (choice === 0) {
-          setCpu((prev) => Math.min(99, prev + 3));
-        } else if (choice === 1) {
-          setMemoryMB((prev) => Math.min(maxMemoryMB, prev + 128));
-        } else {
-          setStorageMB((prev) => Math.min(4096, prev + 128));
-        }
+      // Memory span on scroll based on em:
+      // Every 12em of scroll delta, increase memory smoothly (16MB per 12em) up to maxMemoryMB
+      const emSpanThreshold = 12 * rootFontSize;
+      const delta = Math.abs(currentY - lastScrollYRef.current);
+      if (delta >= emSpanThreshold) {
+        lastScrollYRef.current = currentY;
+        setMemoryMB((prev) => Math.min(maxMemoryMB, prev + 16));
       }
     };
 
@@ -177,8 +235,13 @@ function AppContent() {
       {/* 1. CPU Burning Screen Edge Effect */}
       <CpuBurningEffect cpuPercent={cpu} />
 
-      {/* 2. Storage Corruption: Small 1mm nearly-opaque micro-squares across the screen */}
-      <StorageCorruptionEffect storageMB={storageMB} maxStorageMB={4096} />
+      {/* 2. Storage & Memory Corruption: 1mm micro-squares with capacity based on memory ceiling */}
+      <StorageCorruptionEffect
+        storageMB={storageMB}
+        maxStorageMB={4096}
+        memoryMB={memoryMB}
+        maxMemoryMB={maxMemoryMB}
+      />
 
       {/* 3. Memory UI Lag & Stutter Effect */}
       <UiLagEffect memoryMB={memoryMB} />
@@ -206,7 +269,11 @@ function AppContent() {
                   ? 'bg-emerald-600 text-white border-emerald-500 shadow-md animate-pulse'
                   : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200 border-neutral-300'
               }`}
-              title={isMidiPlaying ? 'Pause MIDI synth' : 'Play cheesy retro MIDI music'}
+              title={
+                isMidiPlaying
+                  ? 'Pause corporate theme song'
+                  : 'Play our relaxing corporate theme song (specifically engineered to increase ad tolerance by 12%)'
+              }
             >
               {isMidiPlaying ? (
                 <Volume2 className="w-3.5 h-3.5 text-white animate-bounce" />
@@ -277,6 +344,9 @@ function AppContent() {
         memoryMB={memoryMB}
         storageMB={storageMB}
         maxMemoryMB={maxMemoryMB}
+        highWatermarkMB={highWatermarkMB}
+        isOomClamped={isOomClamped}
+        onUnlockCeiling={handleUnlockCeiling}
         onCpuChange={setCpu}
         onMemoryChange={setMemoryMB}
         onStorageChange={setStorageMB}

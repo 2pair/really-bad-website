@@ -25,13 +25,29 @@ function dynamicScamVideosPlugin(): Plugin {
       title: 'PILOT REVEALS: SECRET AIRLINE PASS FOR UNLIMITED FLIGHTS',
       badge: 'AIRLINE INSIDER LEAK',
     },
+    'Creating_scammy_advertisement_video_c42fdb99_ee51c543.mp4': {
+      title: 'AI BEST FRIEND BFF TODAY: NEVER DOUBT YOURSELF AGAIN!',
+      badge: 'REVOLUTIONARY AI BFF',
+    },
+    'Make_aggressive_scammy_sales_video_53a44362_3f838ddc.mp4': {
+      title: 'STILL EATING SANDWICHES LIKE A LOSER? TRADE OPTIONS ON MARGIN!',
+      badge: 'OPTIONS TRADING GURU',
+    },
+    'Creating_scammy_credit_card_adve__6d4b6615_22fe5d09.mp4': {
+      title: 'TIRED OF CREDIT CARD BILLS? THROW IT AWAY & GET A NEW ONE!',
+      badge: 'FREE CREDIT CARD SECRETS',
+    },
+    'Create_scammy_precious_metals_ad__84b3498d_31908e1e.mp4': {
+      title: "DON'T LET THE GOVERNMENT STEAL YOUR MINERAL RIGHTS! (URGENT WARNING)",
+      badge: 'BURIED GOLD WEALTH',
+    },
+    'Creating_scammy_government_horse__76670e5a_90551197.mp4': {
+      title: 'US GOVERNMENT SURPLUS HORSES - DIRT CHEAP & READY TO GO!',
+      badge: 'LIMITED EQUINE CLEARANCE',
+    },
     'Creating_scammy_sales_video_news_5a1cced2_f3d0f1d1.mp4': {
       title: 'BREAKING NEWS: DIRE CONSUMER WARNING',
       badge: 'URGENT NEWS BULLET',
-    },
-    'Make_aggressive_scammy_sales_video_53a44362_3f838ddc.mp4': {
-      title: 'ATTENTION! $50,000 IN 24 HOURS (NOT A JOKE)',
-      badge: 'SECRET BANK LOOPHOLE',
     },
     'Make_aggressive_scammy_sales_video_a61f6d50_1c9c8031.mp4': {
       title: 'STOP SCROLLING! $10,000 MADE WHILE YOU WATCHED',
