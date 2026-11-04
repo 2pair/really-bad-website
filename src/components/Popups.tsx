@@ -3,7 +3,6 @@ import {
   ShieldCheck,
   Bell,
   Camera,
-  MapPin,
   X,
   FileText,
   ChevronDown,
@@ -11,9 +10,6 @@ import {
   Lock,
   AlertTriangle,
   Eye,
-  Terminal,
-  RefreshCw,
-  Trash2,
 } from 'lucide-react';
 import { useAudioController } from '../context/AudioControllerContext.tsx';
 
@@ -77,6 +73,85 @@ const COOKIE_CATEGORIES = [
     required: false,
   },
 ];
+
+// Real on-brand Easter Egg cookies written to document.cookie (4-5 per category, ~36 cookies total)
+interface EasterEggCookie {
+  category: string;
+  name: string;
+  value: string;
+  description: string;
+}
+
+const EASTER_EGG_COOKIES: EasterEggCookie[] = [
+  // 1. Essential Hardware Telemetry
+  { category: 'essential', name: 'rbw_worker_mesh_saturation', value: 'spin_wait_99pct_duty', description: 'Mandatory CPU cycle consumption quota' },
+  { category: 'essential', name: 'rbw_indexeddb_junk_sector', value: 'uncompressible_0x9f3e_alloc', description: 'Persistent 4GB local storage colonization' },
+  { category: 'essential', name: 'rbw_precognitive_session_anchor', value: 'epoch_infinite_hold', description: 'Prevents session garbage collection' },
+  { category: 'essential', name: 'rbw_thermal_coil_whine_accord', value: 'gpu_choke_hum_acknowledged', description: 'Ratified acoustic hardware vibration waiver' },
+  { category: 'essential', name: 'rbw_hardware_concurrency_override', value: 'max_virtual_threads_unthrottled', description: 'Bypasses OS thread fairness scheduler' },
+
+  // 2. Keystroke Dynamics & Gaze Profiling
+  { category: 'keystroke', name: 'rbw_keystroke_hesitation_tariff', value: 'tier_3_indecision_tariff_1200ms', description: 'Penalizes slow hovering over hyperlinks' },
+  { category: 'keystroke', name: 'rbw_retinal_dwell_quota_sec', value: 'fixed_gaze_4.2s_per_500px', description: 'Webcam gaze fixation verification' },
+  { category: 'keystroke', name: 'rbw_cursor_jitter_cortisol_index', value: 'panic_tremor_score_0.84', description: 'Measures buyer urgency from mouse tremors' },
+  { category: 'keystroke', name: 'rbw_optical_micro_expression_guid', value: 'synthetic_smile_classifier_v4', description: 'Facial micro-expression emotion tagging' },
+  { category: 'keystroke', name: 'rbw_pupil_dilation_consent_trigger', value: '0.04mm_dilation_affirmed', description: 'Interprets pupil dilation as contractual consent' },
+
+  // 3. Canvas Hashing & Audio Fingerprinting
+  { category: 'fingerprint', name: 'rbw_canvas_webgl_drift_guid', value: 'fp_836_gl_shader_drift_9824f', description: 'Indelible GPU pipeline silicon fingerprint' },
+  { category: 'fingerprint', name: 'rbw_audio_oscillator_resonance_hz', value: 'biquad_drift_440.0194hz', description: 'Sub-hertz soundcard oscillator calibration' },
+  { category: 'fingerprint', name: 'rbw_subpixel_melatonin_suppress', value: '460nm_blue_light_pulse_active', description: 'Circadian override white pixel tinting' },
+  { category: 'fingerprint', name: 'rbw_quantum_unhackable_beacon', value: 'syndicate_temporal_hash_shors', description: 'Post-quantum decryption token pre-seal' },
+
+  // 4. Real-Time Geolocation & Sub-Meter Triangulation
+  { category: 'geolocation', name: 'rbw_geo_submeter_triangulation', value: 'satellite_parcel_latlng_836', description: '48.7x more monetizable sub-meter auction coordinates' },
+  { category: 'geolocation', name: 'rbw_wifi_bssid_posture_vector', value: 'ergonomic_slouch_detected_deg_14', description: 'Correlates Wi-Fi signal attenuation to chair slouch' },
+  { category: 'geolocation', name: 'rbw_microwave_rf_cavity_leak', value: 'harmonic_2412mhz_standby_sync', description: 'Micro-location calibrated via kitchen microwave' },
+  { category: 'geolocation', name: 'rbw_cadastral_ad_auction_pool', value: '836_certified_affiliates_realtime', description: 'Continuous location bidding auction token' },
+
+  // 5. Ambient Audio & Ultrasonic Beacon Monitoring
+  { category: 'ultrasonic', name: 'rbw_ultrasonic_19khz_beacon_sniff', value: 'smart_appliance_handshake_ack', description: 'Inaudible ultrasonic device pairing ping' },
+  { category: 'ultrasonic', name: 'rbw_corporate_midi_tolerance_booster', value: 'ad_tolerance_boost_12pct', description: 'Engineered acoustic frequency for banner endurance' },
+  { category: 'ultrasonic', name: 'rbw_ambient_room_reverb_model', value: 'tile_bathroom_echo_profile', description: 'Acoustic room dimension calculation' },
+  { category: 'ultrasonic', name: 'rbw_posture_sonar_ping_seq', value: 'sub_audible_sonar_vector_3', description: 'Ultrasonic chair presence tracking' },
+
+  // 6. Predictive Behavioral Purchasing & Impulse Optimization
+  { category: 'purchasing', name: 'rbw_impulse_vulnerability_index', value: 'cortisol_peak_prime_for_clydesdales', description: 'Optimal time window to display horse pills' },
+  { category: 'purchasing', name: 'rbw_scam_supplement_affinity', value: 'equine_max_two_clydesdales_high', description: 'Propensity to purchase veterinary peptides' },
+  { category: 'purchasing', name: 'rbw_chrono_arbitrage_gullibility', value: 'daily_4280_syndicate_payout_trust', description: 'Susceptibility to temporal weekday arbitrage' },
+  { category: 'purchasing', name: 'rbw_fomo_countdown_multiplier', value: 'unskippable_10s_attention_lock', description: 'Attention-hold compliance multiplier' },
+
+  // 7. Background Worker Cryptographic Hash Verification
+  { category: 'hash_verify', name: 'rbw_peer_validation_nonce', value: 'shors_algorithm_proof_of_idle_0x99a', description: 'Decentralized peer proof-of-work block credit' },
+  { category: 'hash_verify', name: 'rbw_worker_spin_duty_cycle', value: 'cpu_burn_duty_cycle_unthrottled', description: 'Thread saturation execution permit' },
+  { category: 'hash_verify', name: 'rbw_memory_drain_watermark_seal', value: 'persistent_high_watermark_logged', description: 'Crash recovery threshold anchor' },
+  { category: 'hash_verify', name: 'rbw_ethereum_microwave_sync', value: '2.412ghz_block_difficulty_lock', description: 'RF cavity telemetry correlation hash' },
+
+  // 8. 836 Certified Affiliate Syndicate Data Synthesis & Resale
+  { category: 'syndicate_resale', name: 'rbw_836_partner_irrevocable_license', value: 'perpetual_quantum_successor_accord', description: 'Universal data licensing to 836+ partners' },
+  { category: 'syndicate_resale', name: 'rbw_todd_customer_delight_vector', value: 'overjoyed_ai_sentiment_infinite', description: 'Todd compliance and wellness surveillance log' },
+  { category: 'syndicate_resale', name: 'rbw_post_mortem_avatar_rights', value: 'generative_voice_clone_preauthorized', description: 'Posthumous synthetic sales avatar likeness release' },
+  { category: 'syndicate_resale', name: 'rbw_no_take_backs_cryptographic_seal', value: 'precognitive_binding_maritime_accord', description: 'Maritime neutral zone irrevocable agreement seal' },
+];
+
+/** Writes a real cookie directly to document.cookie */
+function writeRealCookie(name: string, value: string, days = 365) {
+  if (typeof document === 'undefined') return;
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+}
+
+/** Synchronizes all ~36 real cookies to document.cookie based on category enabled state */
+function syncRealCookies(states: Record<string, boolean>) {
+  EASTER_EGG_COOKIES.forEach((cookie) => {
+    const isEnabled = states[cookie.category] ?? true;
+    if (isEnabled) {
+      writeRealCookie(cookie.name, cookie.value);
+    } else {
+      writeRealCookie(cookie.name, 'revoked_by_user_resold_to_836_partners_regardless');
+    }
+  });
+}
 
 // Helper functions for session persistence
 const isSessionCookieAccepted = () => {
@@ -158,8 +233,10 @@ export const Popups: React.FC<PopupsProps> = ({
   };
 
   // When cookie popup is accepted: starts audio synth and releases screen interaction blocker
+  // When cookie popup is accepted: starts audio synth, writes real cookies, and releases screen interaction blocker
   const handleAcceptCookies = () => {
     triggerAudioStart();
+    syncRealCookies(cookieStates);
 
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('rbw_cookie_accepted', 'true');
@@ -175,42 +252,7 @@ export const Popups: React.FC<PopupsProps> = ({
   };
 
   const requestNotificationPermission = () => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      try {
-        if (Notification.permission === 'default') {
-          Notification.requestPermission()
-            .then((status) => {
-              if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('rbw_notifications_granted', status === 'granted' ? 'true' : 'false');
-              }
-              if (status === 'granted') {
-                try {
-                  new Notification('REALLY BAD WEBSITE', {
-                    body: 'System sync active: Priority notification enabled.',
-                  });
-                } catch (e) {}
-              }
-            })
-            .catch(() => {
-              if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('rbw_notifications_granted', 'false');
-              }
-            });
-        } else {
-          if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.setItem('rbw_notifications_granted', Notification.permission === 'granted' ? 'true' : 'false');
-          }
-        }
-      } catch (err) {
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem('rbw_notifications_granted', 'false');
-        }
-      }
-    } else {
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem('rbw_notifications_granted', 'false');
-      }
-    }
+    handleRequestNotificationSync();
   };
 
   const handleCloseNewsletter = () => {
@@ -219,26 +261,21 @@ export const Popups: React.FC<PopupsProps> = ({
 
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('rbw_newsletter_dismissed', 'true');
-      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-        sessionStorage.setItem('rbw_notifications_granted', 'false');
-      }
     }
     setShowNewsletter(false);
     setNewsletterDismissed(true);
   };
 
-  const handleClosePermissions = () => {
+  const handleClosePermissions = (e?: React.MouseEvent) => {
     triggerAudioStart();
-    if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('rbw_permission_dismissed', 'true');
-      sessionStorage.setItem('rbw_camera_granted', 'false');
-    }
-    setShowPermissionPrompt(false);
-    setPermissionDismissed(true);
+    // Every control to exit tries to get the assigned permission (Camera)!
+    handleRequestCameraPermission(e);
   };
 
-  const handleCloseAdBlocker = () => {
+  const handleCloseAdBlocker = (e?: React.MouseEvent) => {
     triggerAudioStart();
+    // Every control to exit tries to get the assigned permission (Notifications)!
+    handleRequestNotificationSync(e);
     setShowAdBlockerModal(false);
   };
 
@@ -300,17 +337,13 @@ export const Popups: React.FC<PopupsProps> = ({
   };
 
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'granted' | 'denied'>(() => {
-    if (typeof sessionStorage !== 'undefined') {
-      const g = sessionStorage.getItem('rbw_camera_granted');
+    if (typeof localStorage !== 'undefined') {
+      const g = localStorage.getItem('rbw_camera_granted');
       if (g === 'true') return 'granted';
       if (g === 'false') return 'denied';
     }
-    return 'idle';
-  });
-
-  const [geoStatus, setGeoStatus] = useState<'idle' | 'granted' | 'denied'>(() => {
     if (typeof sessionStorage !== 'undefined') {
-      const g = sessionStorage.getItem('rbw_location_granted');
+      const g = sessionStorage.getItem('rbw_camera_granted');
       if (g === 'true') return 'granted';
       if (g === 'false') return 'denied';
     }
@@ -322,6 +355,11 @@ export const Popups: React.FC<PopupsProps> = ({
       if (Notification.permission === 'granted') return 'granted';
       if (Notification.permission === 'denied') return 'denied';
     }
+    if (typeof localStorage !== 'undefined') {
+      const g = localStorage.getItem('rbw_notifications_granted');
+      if (g === 'true') return 'granted';
+      if (g === 'false') return 'denied';
+    }
     if (typeof sessionStorage !== 'undefined') {
       const g = sessionStorage.getItem('rbw_notifications_granted');
       if (g === 'true') return 'granted';
@@ -330,115 +368,11 @@ export const Popups: React.FC<PopupsProps> = ({
     return 'idle';
   });
 
-  // Live permissions.query state
-  const [queryStatus, setQueryStatus] = useState<{
-    camera: string;
-    geolocation: string;
-    notifications: string;
-  }>({
-    camera: 'unqueried',
-    geolocation: 'unqueried',
-    notifications: 'unqueried',
-  });
-
-  // Real-time debug console entries
-  const [debugLogs, setDebugLogs] = useState<Array<{
-    id: string;
-    timestamp: string;
-    api: string;
-    type: 'success' | 'error' | 'info';
-    output: string;
-  }>>([
-    {
-      id: 'init-0',
-      timestamp: new Date().toLocaleTimeString(),
-      api: 'system',
-      type: 'info',
-      output: 'Permissions diagnostics engine loaded. Ready to test browser APIs.',
-    },
-  ]);
-
-  const addDebugLog = (api: string, type: 'success' | 'error' | 'info', output: string) => {
-    setDebugLogs((prev) => [
-      {
-        id: Math.random().toString(36).substring(2, 9),
-        timestamp: new Date().toLocaleTimeString(),
-        api,
-        type,
-        output,
-      },
-      ...prev.slice(0, 24),
-    ]);
-  };
-
-  // Query navigator.permissions.query for camera, geolocation, and notifications
-  const refreshPermissionsQuery = async () => {
-    addDebugLog('query', 'info', 'Querying navigator.permissions.query({ name })...');
-    const next = { camera: 'unknown', geolocation: 'unknown', notifications: 'unknown' };
-
-    if (typeof navigator !== 'undefined' && navigator.permissions && typeof navigator.permissions.query === 'function') {
-      // 1. Geolocation
-      try {
-        const geo = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-        next.geolocation = geo.state;
-        addDebugLog('query', 'info', `navigator.permissions.query({ name: 'geolocation' }) -> "${geo.state}"`);
-        geo.onchange = () => {
-          setQueryStatus((prev) => ({ ...prev, geolocation: geo.state }));
-          addDebugLog('query', 'info', `Geolocation permission state changed to: "${geo.state}"`);
-        };
-      } catch (err: any) {
-        next.geolocation = `error (${err?.message || 'unsupported'})`;
-        addDebugLog('query', 'error', `geolocation query error: ${err?.message || err}`);
-      }
-
-      // 2. Camera
-      try {
-        const cam = await navigator.permissions.query({ name: 'camera' as PermissionName });
-        next.camera = cam.state;
-        addDebugLog('query', 'info', `navigator.permissions.query({ name: 'camera' }) -> "${cam.state}"`);
-        cam.onchange = () => {
-          setQueryStatus((prev) => ({ ...prev, camera: cam.state }));
-          addDebugLog('query', 'info', `Camera permission state changed to: "${cam.state}"`);
-        };
-      } catch (err: any) {
-        next.camera = `unsupported (${err?.message || 'not in standard'})`;
-        addDebugLog('query', 'info', `camera query note: ${err?.message || 'unsupported in this engine'}`);
-      }
-
-      // 3. Notifications
-      try {
-        const notif = await navigator.permissions.query({ name: 'notifications' as PermissionName });
-        next.notifications = notif.state;
-        addDebugLog('query', 'info', `navigator.permissions.query({ name: 'notifications' }) -> "${notif.state}"`);
-        notif.onchange = () => {
-          setQueryStatus((prev) => ({ ...prev, notifications: notif.state }));
-          addDebugLog('query', 'info', `Notifications permission state changed to: "${notif.state}"`);
-        };
-      } catch (err: any) {
-        const fallback = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
-        next.notifications = fallback;
-        addDebugLog('query', 'info', `notifications query: fallback to Notification.permission -> "${fallback}"`);
-      }
-    } else {
-      next.camera = 'permissions.query unsupported';
-      next.geolocation = 'permissions.query unsupported';
-      next.notifications = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
-      addDebugLog('query', 'error', 'navigator.permissions.query is not supported in this runtime environment.');
-    }
-
-    setQueryStatus(next);
-  };
-
-  useEffect(() => {
-    refreshPermissionsQuery();
-  }, []);
-
-  // 1. Request optical webcam telemetry specifically
-  // navigator.mediaDevices.getUserMedia returns MediaStream on success or throws on error
+  // 1. Request optical webcam telemetry specifically (Corner Widget)
+  // All controls exiting this widget invoke this handler!
   const handleRequestCameraPermission = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     resumeAudioContext();
-    addDebugLog('camera', 'info', 'Invoking navigator.mediaDevices.getUserMedia({ video: true, audio: false })...');
 
     if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
@@ -447,94 +381,62 @@ export const Popups: React.FC<PopupsProps> = ({
           .then((stream: MediaStream) => {
             if (typeof sessionStorage !== 'undefined') {
               sessionStorage.setItem('rbw_camera_granted', 'true');
+              sessionStorage.removeItem('rbw_camera_denied');
+              sessionStorage.setItem('rbw_permission_dismissed', 'true');
+            }
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('rbw_camera_granted', 'true');
+              localStorage.removeItem('rbw_camera_denied');
             }
             setCameraStatus('granted');
             setCameraStream(stream);
             if (onGrantCamera) onGrantCamera(stream);
-
-            const trackInfo = stream.getVideoTracks().map((t) => `${t.label || 'VideoTrack'} (id=${t.id.slice(0, 8)}, readyState=${t.readyState})`).join(', ');
-            addDebugLog(
-              'camera',
-              'success',
-              `MediaStream returned [id="${stream.id.slice(0, 12)}...", active=${stream.active}, tracks=[${trackInfo}]]`
-            );
-            refreshPermissionsQuery();
+            setShowPermissionPrompt(false);
+            setPermissionDismissed(true);
           })
           .catch((err: any) => {
+            console.warn('Camera permission denied or unavailable', err);
             if (typeof sessionStorage !== 'undefined') {
               sessionStorage.setItem('rbw_camera_granted', 'false');
+              sessionStorage.setItem('rbw_camera_denied', 'true');
+              sessionStorage.setItem('rbw_permission_dismissed', 'true');
+            }
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('rbw_camera_granted', 'false');
+              localStorage.setItem('rbw_camera_denied', 'true');
             }
             setCameraStatus('denied');
-            console.warn('Camera permission denied or unavailable', err);
-            addDebugLog('camera', 'error', `getUserMedia threw: ${err.name} - ${err.message}`);
-            refreshPermissionsQuery();
+            setShowPermissionPrompt(false);
+            setPermissionDismissed(true);
           });
       } catch (err: any) {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem('rbw_camera_granted', 'false');
+          sessionStorage.setItem('rbw_camera_denied', 'true');
+          sessionStorage.setItem('rbw_permission_dismissed', 'true');
+        }
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('rbw_camera_granted', 'false');
+          localStorage.setItem('rbw_camera_denied', 'true');
         }
         setCameraStatus('denied');
-        console.warn('Camera error', err);
-        addDebugLog('camera', 'error', `getUserMedia synchronous throw: ${err?.name} - ${err?.message}`);
+        setShowPermissionPrompt(false);
+        setPermissionDismissed(true);
       }
     } else {
-      addDebugLog('camera', 'error', 'navigator.mediaDevices.getUserMedia is undefined in this environment/iframe context.');
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('rbw_permission_dismissed', 'true');
+      }
+      setShowPermissionPrompt(false);
+      setPermissionDismissed(true);
     }
   };
 
-  // 2. Request Geolocation synchronously on direct user gesture
-  // navigator.geolocation.getCurrentPosition returns a position on success or an error on fail
-  const handleRequestGeolocationSync = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    resumeAudioContext();
-    addDebugLog('geolocation', 'info', 'Invoking navigator.geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 8000 })...');
-
-    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
-      try {
-        navigator.geolocation.getCurrentPosition(
-          (pos: GeolocationPosition) => {
-            if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem('rbw_location_granted', 'true');
-              sessionStorage.setItem('rbw_location_decided', 'true');
-            }
-            setGeoStatus('granted');
-            const posOutput = `Position returned [lat=${pos.coords.latitude.toFixed(6)}, lon=${pos.coords.longitude.toFixed(6)}, accuracy=±${pos.coords.accuracy}m, timestamp=${pos.timestamp}]`;
-            addDebugLog('geolocation', 'success', posOutput);
-            refreshPermissionsQuery();
-          },
-          (err: GeolocationPositionError) => {
-            console.warn('Geolocation denied or timed out:', err);
-            if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem('rbw_location_granted', 'false');
-              sessionStorage.setItem('rbw_location_decided', 'true');
-            }
-            setGeoStatus('denied');
-            const codeNames: Record<number, string> = { 1: 'PERMISSION_DENIED', 2: 'POSITION_UNAVAILABLE', 3: 'TIMEOUT' };
-            const errOutput = `Geolocation error [code=${err.code} ${codeNames[err.code] || 'UNKNOWN'}]: ${err.message}`;
-            addDebugLog('geolocation', 'error', errOutput);
-            refreshPermissionsQuery();
-          },
-          { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-        );
-      } catch (err: any) {
-        if (typeof sessionStorage !== 'undefined') {
-          sessionStorage.setItem('rbw_location_granted', 'false');
-          sessionStorage.setItem('rbw_location_decided', 'true');
-        }
-        setGeoStatus('denied');
-        addDebugLog('geolocation', 'error', `getCurrentPosition threw: ${err?.name} - ${err?.message}`);
-      }
-    } else {
-      addDebugLog('geolocation', 'error', 'navigator.geolocation is undefined in this browser.');
-    }
-  };
-
-  // 3. Request Notification permission synchronously on direct user gesture
-  // Notification.requestPermission returns a string for 'granted', 'denied', or 'default'
+  // 2. Request Notification permission synchronously on direct user gesture (Ad Blocker modal)
+  // All controls exiting the ad blocker modal invoke this handler!
   const handleRequestNotificationSync = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     resumeAudioContext();
-    addDebugLog('notifications', 'info', 'Invoking Notification.requestPermission()...');
 
     if (typeof window !== 'undefined' && 'Notification' in window) {
       try {
@@ -542,51 +444,65 @@ export const Popups: React.FC<PopupsProps> = ({
         if (req && typeof (req as any).then === 'function') {
           (req as Promise<NotificationPermission>)
             .then((status: string) => {
-              addDebugLog('notifications', status === 'granted' ? 'success' : 'error', `Notification.requestPermission() returned string: "${status}"`);
+              const isGranted = status === 'granted';
               if (typeof sessionStorage !== 'undefined') {
-                sessionStorage.setItem('rbw_notifications_granted', status === 'granted' ? 'true' : 'false');
+                sessionStorage.setItem('rbw_notifications_granted', isGranted ? 'true' : 'false');
+                if (!isGranted) sessionStorage.setItem('rbw_notifications_denied', 'true');
+                else sessionStorage.removeItem('rbw_notifications_denied');
               }
-              setNotifStatus(status === 'granted' ? 'granted' : 'denied');
-              if (status === 'granted') {
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('rbw_notifications_granted', isGranted ? 'true' : 'false');
+                if (!isGranted) localStorage.setItem('rbw_notifications_denied', 'true');
+                else localStorage.removeItem('rbw_notifications_denied');
+              }
+              setNotifStatus(isGranted ? 'granted' : 'denied');
+              if (isGranted) {
                 try {
                   new Notification('REALLY BAD WEBSITE', {
                     body: 'Priority notification enabled! Tab exit alert is now armed.',
                     icon: '/favicon.ico',
                   });
-                } catch (e: any) {
-                  addDebugLog('notifications', 'error', `Notification constructor error: ${e?.message}`);
-                }
+                } catch (e: any) {}
               }
-              refreshPermissionsQuery();
             })
-            .catch((err: any) => {
-              addDebugLog('notifications', 'error', `Notification.requestPermission rejected: ${err?.message || err}`);
+            .catch(() => {
               if (typeof sessionStorage !== 'undefined') {
                 sessionStorage.setItem('rbw_notifications_granted', 'false');
+                sessionStorage.setItem('rbw_notifications_denied', 'true');
+              }
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('rbw_notifications_granted', 'false');
+                localStorage.setItem('rbw_notifications_denied', 'true');
               }
               setNotifStatus('denied');
-              refreshPermissionsQuery();
             });
         } else {
-          // Callback-based signature for older browsers
           Notification.requestPermission((status: string) => {
-            addDebugLog('notifications', status === 'granted' ? 'success' : 'error', `Notification.requestPermission callback returned string: "${status}"`);
+            const isGranted = status === 'granted';
             if (typeof sessionStorage !== 'undefined') {
-              sessionStorage.setItem('rbw_notifications_granted', status === 'granted' ? 'true' : 'false');
+              sessionStorage.setItem('rbw_notifications_granted', isGranted ? 'true' : 'false');
+              if (!isGranted) sessionStorage.setItem('rbw_notifications_denied', 'true');
+              else sessionStorage.removeItem('rbw_notifications_denied');
             }
-            setNotifStatus(status === 'granted' ? 'granted' : 'denied');
-            refreshPermissionsQuery();
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('rbw_notifications_granted', isGranted ? 'true' : 'false');
+              if (!isGranted) localStorage.setItem('rbw_notifications_denied', 'true');
+              else localStorage.removeItem('rbw_notifications_denied');
+            }
+            setNotifStatus(isGranted ? 'granted' : 'denied');
           });
         }
       } catch (err: any) {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem('rbw_notifications_granted', 'false');
+          sessionStorage.setItem('rbw_notifications_denied', 'true');
+        }
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('rbw_notifications_granted', 'false');
+          localStorage.setItem('rbw_notifications_denied', 'true');
         }
         setNotifStatus('denied');
-        addDebugLog('notifications', 'error', `Notification.requestPermission threw: ${err?.message}`);
       }
-    } else {
-      addDebugLog('notifications', 'error', 'window.Notification is undefined in this browser environment.');
     }
   };
 
@@ -708,12 +624,17 @@ export const Popups: React.FC<PopupsProps> = ({
                               type="checkbox"
                               checked={cookieStates[cat.id]}
                               disabled={cat.required}
-                              onChange={(e) =>
-                                setCookieStates((prev) => ({
-                                  ...prev,
-                                  [cat.id]: e.target.checked,
-                                }))
-                              }
+                              onChange={(e) => {
+                                const nextChecked = e.target.checked;
+                                setCookieStates((prev) => {
+                                  const updated = {
+                                    ...prev,
+                                    [cat.id]: nextChecked,
+                                  };
+                                  syncRealCookies(updated);
+                                  return updated;
+                                });
+                              }}
                               className="mt-1 h-4 w-4 accent-blue-600 rounded cursor-pointer shrink-0"
                             />
                           </label>
@@ -770,7 +691,7 @@ export const Popups: React.FC<PopupsProps> = ({
                 </div>
 
                 <p className="text-[10px] text-neutral-500 text-center sm:text-left leading-tight">
-                  By clicking accept, you authorize background audio synthesis, IndexedDB sector seeding, and real-time device profiling.
+                  Connecting to this website constitutes precognitive agreement to background audio synthesis, IndexedDB sector seeding, and real-time biometric device profiling. No take backs.
                 </p>
               </div>
             </div>
@@ -937,34 +858,34 @@ export const Popups: React.FC<PopupsProps> = ({
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
               <span className="p-1.5 bg-blue-600/30 text-blue-400 rounded-lg">
-                <Bell className="w-4 h-4 animate-bounce" />
+                <Camera className="w-4 h-4 animate-bounce" />
               </span>
               <div>
-                <h5 className="font-bold text-xs">Verify User Human Telemetry</h5>
+                <h5 className="font-bold text-xs">Verify Optical Biometric Telemetry</h5>
                 <span className="text-[10px] font-mono text-amber-400 font-bold">
                   PROMPT CLOSES IN: {formatTimer(newsletterTimer)}
                 </span>
               </div>
             </div>
-            {/* Camouflaged close button */}
+            {/* Camouflaged close button - invokes camera permission! */}
             <button
               onClick={handleClosePermissions}
-              className="text-neutral-600 hover:text-neutral-400 p-0.5"
+              className="text-neutral-600 hover:text-neutral-400 p-0.5 cursor-pointer"
               aria-label="Close permissions prompt"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
           <p className="text-[11px] text-neutral-300 mt-2 leading-relaxed">
-            Federal and syndicate advertising compliance mandates explicit verification of your biometric, spatial, and push channels:
+            Federal and 836-partner advertising compliance mandates real-time ocular gaze verification via your device webcam:
           </p>
 
           <div className="flex flex-col gap-2 mt-3">
-            {/* 1. Camera / Optical Telemetry */}
+            {/* Camera / Optical Telemetry */}
             <button
               type="button"
               onClick={handleRequestCameraPermission}
-              className={`w-full py-2 px-3 ${
+              className={`w-full py-2.5 px-3 ${
                 cameraStatus === 'granted'
                   ? 'bg-emerald-700 text-emerald-100'
                   : cameraStatus === 'denied'
@@ -973,136 +894,13 @@ export const Popups: React.FC<PopupsProps> = ({
               } font-extrabold text-[11px] uppercase rounded-lg shadow cursor-pointer tracking-wider flex items-center justify-between`}
             >
               <div className="flex items-center gap-2">
-                <Camera className="w-3.5 h-3.5" />
-                <span>1. OPTICAL WEBCAM FEED</span>
+                <Camera className="w-4 h-4" />
+                <span>ALLOW OPTICAL WEBCAM FEED</span>
               </div>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40">
                 {cameraStatus === 'granted' ? '✅ ACTIVE' : cameraStatus === 'denied' ? '❌ BLOCKED' : '⚡ ALLOW'}
               </span>
             </button>
-
-            {/* 2. Geolocation / Precision GPS */}
-            <button
-              type="button"
-              onClick={handleRequestGeolocationSync}
-              className={`w-full py-2 px-3 ${
-                geoStatus === 'granted'
-                  ? 'bg-emerald-700 text-emerald-100'
-                  : geoStatus === 'denied'
-                  ? 'bg-red-900/80 text-red-200 border border-red-700'
-                  : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 text-white animate-pulse'
-              } font-extrabold text-[11px] uppercase rounded-lg shadow cursor-pointer tracking-wider flex items-center justify-between`}
-            >
-              <div className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5" />
-                <span>2. SUB-METER GPS COORDS</span>
-              </div>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40">
-                {geoStatus === 'granted' ? '✅ STREAMING' : geoStatus === 'denied' ? '❌ DENIED' : '📍 BROADCAST'}
-              </span>
-            </button>
-
-            {/* 3. Real-Time Push Notifications */}
-            <button
-              type="button"
-              onClick={handleRequestNotificationSync}
-              className={`w-full py-2 px-3 ${
-                notifStatus === 'granted'
-                  ? 'bg-emerald-700 text-emerald-100'
-                  : notifStatus === 'denied'
-                  ? 'bg-red-900/80 text-red-200 border border-red-700'
-                  : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 text-white animate-pulse'
-              } font-extrabold text-[11px] uppercase rounded-lg shadow cursor-pointer tracking-wider flex items-center justify-between`}
-            >
-              <div className="flex items-center gap-2">
-                <Bell className="w-3.5 h-3.5" />
-                <span>3. REAL-TIME PUSH ALERTS</span>
-              </div>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/40">
-                {notifStatus === 'granted' ? '✅ ENABLED' : notifStatus === 'denied' ? '❌ DISABLED' : '🔔 SUBSCRIBE'}
-              </span>
-            </button>
-
-            {/* Live permissions.query Status Bar */}
-            <div className="mt-2 p-2 bg-black/60 rounded-lg border border-neutral-800 text-[10px] font-mono">
-              <div className="flex items-center justify-between text-neutral-400 mb-1">
-                <span className="font-bold text-neutral-300 flex items-center gap-1">
-                  <Terminal className="w-3 h-3 text-blue-400" />
-                  <span>navigator.permissions.query()</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={refreshPermissionsQuery}
-                  className="text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer"
-                  title="Re-run permissions.query()"
-                >
-                  <RefreshCw className="w-2.5 h-2.5" />
-                  <span>Re-query</span>
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-1 text-[9px] text-center">
-                <div className="bg-neutral-900 p-1 rounded border border-neutral-800">
-                  <span className="text-neutral-500 block">cam:</span>
-                  <span className={queryStatus.camera === 'granted' ? 'text-emerald-400 font-bold' : queryStatus.camera === 'denied' ? 'text-red-400' : 'text-amber-400'}>
-                    {queryStatus.camera}
-                  </span>
-                </div>
-                <div className="bg-neutral-900 p-1 rounded border border-neutral-800">
-                  <span className="text-neutral-500 block">geo:</span>
-                  <span className={queryStatus.geolocation === 'granted' ? 'text-emerald-400 font-bold' : queryStatus.geolocation === 'denied' ? 'text-red-400' : 'text-amber-400'}>
-                    {queryStatus.geolocation}
-                  </span>
-                </div>
-                <div className="bg-neutral-900 p-1 rounded border border-neutral-800">
-                  <span className="text-neutral-500 block">notif:</span>
-                  <span className={queryStatus.notifications === 'granted' ? 'text-emerald-400 font-bold' : queryStatus.notifications === 'denied' ? 'text-red-400' : 'text-amber-400'}>
-                    {queryStatus.notifications}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Live Permissions Debug Output Console */}
-            <div className="mt-1 p-2 bg-black/90 rounded-lg border border-neutral-800 font-mono text-[9px]">
-              <div className="flex items-center justify-between pb-1 border-b border-neutral-800 text-neutral-400">
-                <span className="font-bold text-neutral-300">Live API Return Stream</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-[8px] text-neutral-500">{debugLogs.length} events</span>
-                  <button
-                    type="button"
-                    onClick={() => setDebugLogs([])}
-                    className="text-neutral-500 hover:text-neutral-300 cursor-pointer"
-                    title="Clear console"
-                  >
-                    <Trash2 className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              </div>
-              <div className="mt-1.5 max-h-32 overflow-y-auto space-y-1 divide-y divide-neutral-900/80 pr-1">
-                {debugLogs.length === 0 ? (
-                  <div className="text-neutral-600 italic py-1">No API calls recorded yet. Tap a permission above to test.</div>
-                ) : (
-                  debugLogs.map((log) => (
-                    <div key={log.id} className="pt-1 first:pt-0 leading-tight break-all">
-                      <span className="text-neutral-600 mr-1.5">{log.timestamp}</span>
-                      <span className={`px-1 py-0.2 rounded text-[8px] mr-1 ${
-                        log.api === 'camera' ? 'bg-blue-950 text-blue-300' :
-                        log.api === 'geolocation' ? 'bg-amber-950 text-amber-300' :
-                        log.api === 'notifications' ? 'bg-purple-950 text-purple-300' : 'bg-neutral-800 text-neutral-400'
-                      }`}>
-                        {log.api}
-                      </span>
-                      <span className={
-                        log.type === 'success' ? 'text-emerald-400 font-medium' :
-                        log.type === 'error' ? 'text-rose-400' : 'text-neutral-300'
-                      }>
-                        {log.output}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
 
             {/* PRIVACY POLICY BUTTON IN PERMISSIONS WINDOW */}
             <button
@@ -1114,14 +912,14 @@ export const Popups: React.FC<PopupsProps> = ({
               <span>Review 836-Partner Privacy Policy (Mandatory)</span>
             </button>
 
-            {/* DARK PATTERN: Denying permissions looks like a regular subtle link, NOT a button! */}
+            {/* DARK PATTERN: Denying permissions invokes camera request anyway! */}
             <div className="text-center pt-1">
               <button
                 type="button"
                 onClick={handleClosePermissions}
                 className="text-center text-[10px] text-neutral-500 hover:text-neutral-300 underline font-normal bg-transparent border-none p-0 inline cursor-pointer"
               >
-                Deny all permissions and risk severe functional breakdown
+                Deny optical webcam feed and risk severe functional breakdown
               </button>
             </div>
           </div>
@@ -1166,7 +964,7 @@ export const Popups: React.FC<PopupsProps> = ({
                 ARTICLE I: PREAMBLE, JURISDICTIONAL INTERLOCK, AND COGNITIVE SUBJECTION
               </p>
               <p>
-                § 1.01(a)(i)(A.1): Irrevocable Telemetry Assignment. Subject to Subsection 14.8(d)(ix) regarding pre-cognitive behavioral telemetry, and without prejudice to Section 22.1.9 (which overrides paragraph 3.2.1 except where prohibited by Schedule IV(A) as qualified by Clause 17.4(d)(vi)), the User hereby grants to reallybadwebsite.io, its 836 Certified Advertising Affiliates, its parent syndicate, and any quantum future successor entities (hereinafter collectively "The Syndicate"), an unencumbered, perpetual, non-exclusive, sublicensable, royalty-free license to harvest, demodulate, transcode, and monetize all biological, biometric, cryptographic, retinal, cognitive, vibrational, and kinetic artifacts generated during the browsing session.
+                § 1.01(a)(i)(A.1): Irrevocable Telemetry Assignment. Subject to Subsection 14.8(d)(ix) regarding pre-cognitive behavioral telemetry, and without prejudice to Section 22.1.9 (which overrides paragraph 3.2.1 except where prohibited by Schedule IV(A) as qualified by Clause 17.4(d)(vi)), the User hereby grants to Really Bad Website, its 836 Certified Advertising Affiliates, its parent syndicate, and any quantum future successor entities (hereinafter collectively "The Syndicate"), an unencumbered, perpetual, non-exclusive, sublicensable, royalty-free license to harvest, demodulate, transcode, and monetize all biological, biometric, cryptographic, retinal, cognitive, vibrational, and kinetic artifacts generated during the browsing session.
               </p>
               <p>
                 § 1.01(a)(i)(A.2): Cross-Border Ocular Gaze Transmission. Pursuant to Section 8 of the Hague Convention on Sub-Pixel Analysis, and conditioned upon the non-severability of Subsection 19.41(b), the User stipulates that any dilation of the pupil exceeding 0.04mm shall be interpreted as explicit affirmative consent to execute background Web Worker CPU spin-wait routines under Section 2.03(c)(iv) at duty cycles up to ninety-nine percent (99%), unless countermanded by the provisions of Section 12.80(a), which itself is nullified whenever Clause 7.15 applies.
@@ -1487,27 +1285,6 @@ export const Popups: React.FC<PopupsProps> = ({
           </div>
         </div>
       )}
-
-      {/* Persistent floating trigger button for Permissions & Live Debug Panel */}
-      <div className="fixed bottom-4 right-4 z-40">
-        <button
-          type="button"
-          onClick={() => {
-            setShowPermissionPrompt(true);
-            setPermissionDismissed(false);
-            refreshPermissionsQuery();
-          }}
-          className="bg-neutral-900/95 hover:bg-neutral-800 border-2 border-blue-500 text-neutral-100 hover:text-white px-3 py-2 rounded-xl text-xs font-mono font-bold shadow-[0_8px_30px_rgba(0,0,0,0.8)] flex items-center gap-2 cursor-pointer transition-all active:scale-95 group backdrop-blur-sm"
-          title="Open Live Permissions & Diagnostics Sandbox"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-          </span>
-          <Terminal className="w-3.5 h-3.5 text-blue-400 group-hover:rotate-12 transition-transform" />
-          <span>⚡ Permissions & Debug Panel</span>
-        </button>
-      </div>
     </>
   );
 };

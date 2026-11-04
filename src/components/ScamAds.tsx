@@ -12,6 +12,7 @@ import catAstrologyImg from '../assets/images/cat_astrology_finance_179343578261
 import freeIpadImg from '../assets/images/free_ipad_ad_1793436246644.jpg';
 import meteorInsuranceImg from '../assets/images/meteor_insurance_1793435782326.jpg';
 import telepathicAnimalImg from '../assets/images/telepathic_animal_ad_1793436248281.jpg';
+import horsePillsImg from '../assets/images/horse_pills_clydesdale_1793774700572.jpg';
 
 interface ScamAdConfig {
   id: string;
@@ -27,6 +28,18 @@ interface ScamAdConfig {
 }
 
 const AD_ROTATION: ScamAdConfig[] = [
+  {
+    id: 'clydesdale-horse-pills',
+    type: 'image',
+    headline: 'HORSE PILLS THAT MAKE YOU AS STRONG AS TWO CLYDESDALES!',
+    subhead: 'Underground veterinary peptide formula shocks doctors. Raw, unhinged stallion horsepower in just 14 minutes.',
+    image: horsePillsImg,
+    ctaText: 'CLAIM FREE VETERINARY BOTTLE NOW >',
+    badge: 'EQUINE VIGOR BREAKTHROUGH',
+    bgColor: 'bg-gradient-to-r from-amber-950 to-neutral-950',
+    textColor: 'text-amber-300',
+    fontFamily: "'Bebas Neue', Impact, sans-serif",
+  },
   {
     id: 'weight-loss-cure',
     type: 'image',

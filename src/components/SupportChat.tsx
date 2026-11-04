@@ -30,11 +30,31 @@ export const SupportChat: React.FC<SupportChatProps> = ({
 
   // Generate Todd's classic scripted messages enriched with situational permission context
   const getSituationalScriptedMessage = (index: number): string => {
-    const cameraGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_camera_granted') === 'true';
-    const locationGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_granted') === 'true';
-    const notifGranted =
+    const isCameraGranted =
+      (typeof localStorage !== 'undefined' && localStorage.getItem('rbw_camera_granted') === 'true') ||
+      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_camera_granted') === 'true');
+    const isCameraDeniedRaw =
+      (typeof localStorage !== 'undefined' && (localStorage.getItem('rbw_camera_denied') === 'true' || localStorage.getItem('rbw_camera_granted') === 'false')) ||
+      (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('rbw_camera_denied') === 'true' || sessionStorage.getItem('rbw_camera_granted') === 'false'));
+    const isCameraDenied = !isCameraGranted && isCameraDeniedRaw;
+
+    const isLocationGranted =
+      (typeof localStorage !== 'undefined' && localStorage.getItem('rbw_location_granted') === 'true') ||
+      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_granted') === 'true');
+    const isLocationDeniedRaw =
+      (typeof localStorage !== 'undefined' && (localStorage.getItem('rbw_location_denied') === 'true' || localStorage.getItem('rbw_location_granted') === 'false')) ||
+      (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('rbw_location_denied') === 'true' || sessionStorage.getItem('rbw_location_granted') === 'false'));
+    const isLocationDenied = !isLocationGranted && isLocationDeniedRaw;
+
+    const isNotifGranted =
       (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') ||
+      (typeof localStorage !== 'undefined' && localStorage.getItem('rbw_notifications_granted') === 'true') ||
       (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_notifications_granted') === 'true');
+    const isNotifDeniedRaw =
+      (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied') ||
+      (typeof localStorage !== 'undefined' && (localStorage.getItem('rbw_notifications_denied') === 'true' || localStorage.getItem('rbw_notifications_granted') === 'false')) ||
+      (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('rbw_notifications_denied') === 'true' || sessionStorage.getItem('rbw_notifications_granted') === 'false'));
+    const isNotifDenied = !isNotifGranted && isNotifDeniedRaw;
 
     switch (index) {
       case 0:
@@ -45,20 +65,29 @@ export const SupportChat: React.FC<SupportChatProps> = ({
         }
         return "Thanks for visiting our site today! We hope our relaxing corporate theme song is stabilizing your chronological mindset—it was specifically engineered to increase ad tolerance by 12%.";
       case 2:
-        if (!cameraGranted) {
+        if (isCameraGranted) {
+          return "How is everything going? I can see you on your optical webcam feed, looking great! If I can help with anything, just let me know :)";
+        }
+        if (isCameraDenied) {
           return "How is everything going? If you shared your webcam I wouldn't have to ask. If I can help with anything, just let me know :)";
         }
-        return "How is everything going? I can see you on your webcam feed, looking great! If I can help with anything, just let me know :)";
+        return "How is everything going? If I can help with anything, just let me know :)";
       case 3:
-        if (!locationGranted) {
+        if (isLocationGranted) {
+          return "Did you know our premium subscribers read articles 30% faster? (Thanks for sharing your exact location, our advertising partners are delighted)!";
+        }
+        if (isLocationDenied) {
           return "Did you know our premium subscribers read articles 30% faster? (Of course, that's entirely contingent on sharing your exact location with our 836 partners).";
         }
-        return "Did you know our premium subscribers read articles 30% faster? (Thanks for sharing your exact location, our advertising partners are delighted)!";
+        return "Did you know our premium subscribers read articles 30% faster? Customer delight is our number one metric!";
       case 4:
-        if (!notifGranted) {
+        if (isNotifGranted) {
+          return "I noticed you're still reading! Would you like to schedule a 45-minute synchronization call? We'll ping your desktop notifications directly.";
+        }
+        if (isNotifDenied) {
           return "I noticed you're still reading! Would you like to schedule a 45-minute synchronization call? It would be easier to keep in touch if you didn't disable notifications.";
         }
-        return "I noticed you're still reading! Would you like to schedule a 45-minute synchronization call? We'll ping your desktop notifications directly.";
+        return "I noticed you're still reading! Would you like to schedule a 45-minute synchronization call? Feel free to ping anytime.";
       case 5:
         return "Just checking in again! Remember, complete Customer Delight is a two-way street. You need to be willing to let me delight you.";
       default:
@@ -148,16 +177,36 @@ export const SupportChat: React.FC<SupportChatProps> = ({
 
     // Todd's helpful reply incorporating situational permission review
     setTimeout(() => {
-      const cameraGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_camera_granted') === 'true';
-      const locationGranted = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_granted') === 'true';
-      const notifGranted =
+      const isCameraGranted =
+        (typeof localStorage !== 'undefined' && localStorage.getItem('rbw_camera_granted') === 'true') ||
+        (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_camera_granted') === 'true');
+      const isCameraDenied =
+        !isCameraGranted &&
+        ((typeof localStorage !== 'undefined' && (localStorage.getItem('rbw_camera_denied') === 'true' || localStorage.getItem('rbw_camera_granted') === 'false')) ||
+         (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('rbw_camera_denied') === 'true' || sessionStorage.getItem('rbw_camera_granted') === 'false')));
+
+      const isLocationGranted =
+        (typeof localStorage !== 'undefined' && localStorage.getItem('rbw_location_granted') === 'true') ||
+        (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_location_granted') === 'true');
+      const isLocationDenied =
+        !isLocationGranted &&
+        ((typeof localStorage !== 'undefined' && (localStorage.getItem('rbw_location_denied') === 'true' || localStorage.getItem('rbw_location_granted') === 'false')) ||
+         (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('rbw_location_denied') === 'true' || sessionStorage.getItem('rbw_location_granted') === 'false')));
+
+      const isNotifGranted =
         (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') ||
+        (typeof localStorage !== 'undefined' && localStorage.getItem('rbw_notifications_granted') === 'true') ||
         (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('rbw_notifications_granted') === 'true');
+      const isNotifDenied =
+        !isNotifGranted &&
+        ((typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied') ||
+         (typeof localStorage !== 'undefined' && (localStorage.getItem('rbw_notifications_denied') === 'true' || localStorage.getItem('rbw_notifications_granted') === 'false')) ||
+         (typeof sessionStorage !== 'undefined' && (sessionStorage.getItem('rbw_notifications_denied') === 'true' || sessionStorage.getItem('rbw_notifications_granted') === 'false')));
 
       const deniedList: string[] = [];
-      if (!cameraGranted) deniedList.push('optical webcam feed');
-      if (!locationGranted) deniedList.push('sub-meter GPS');
-      if (!notifGranted) deniedList.push('push alerts');
+      if (isCameraDenied) deniedList.push('optical webcam feed');
+      if (isLocationDenied) deniedList.push('sub-meter GPS');
+      if (isNotifDenied) deniedList.push('push alerts');
       if (!isMidiPlaying) deniedList.push('relaxing corporate theme song');
 
       let reply = '';

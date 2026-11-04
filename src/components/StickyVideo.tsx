@@ -6,24 +6,25 @@ import { fetchVideoWithCache } from '../utils/videoCache.ts';
 import { PreVideoLocationModal } from './PreVideoLocationModal.tsx';
 import { SCAM_VIDEOS } from 'virtual:scam-videos';
 
-// Helper to choose a random next index avoiding repeating the current video
-const getRandomNextIndex = (currentIndex: number, total: number) => {
-  if (total <= 1) return 0;
-  let next = Math.floor(Math.random() * total);
-  while (next === currentIndex) {
-    next = Math.floor(Math.random() * total);
+// Fisher-Yates shuffle to randomize video sequence once at page load
+const createShuffledPlaylist = <T,>(items: T[]): T[] => {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return next;
+  return shuffled;
 };
+
+// Fixed order randomized at page load: shows all videos before repeating
+const FIXED_PAGE_LOAD_PLAYLIST = createShuffledPlaylist(SCAM_VIDEOS);
 
 export const StickyVideo: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Start at a random video index from dynamically enumerated videos
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(() =>
-    Math.floor(Math.random() * Math.max(1, SCAM_VIDEOS.length))
-  );
+  // Sequential pointer through the page-load fixed randomized playlist
+  const [playlistPosition, setPlaylistPosition] = useState<number>(0);
   const [isDocked, setIsDocked] = useState(false);
   const { isVideoUnmuted, toggleVideoAudio, registerVideoElement } = useAudioController();
 
@@ -59,7 +60,8 @@ export const StickyVideo: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const currentVideo = SCAM_VIDEOS[currentVideoIndex] || SCAM_VIDEOS[0];
+  const currentVideo =
+    FIXED_PAGE_LOAD_PLAYLIST[playlistPosition] || FIXED_PAGE_LOAD_PLAYLIST[0] || SCAM_VIDEOS[0];
 
   // Fetch on-demand and aggressively store in page/disk cache
   useEffect(() => {
@@ -78,7 +80,7 @@ export const StickyVideo: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [currentVideoIndex, currentVideo]);
+  }, [playlistPosition, currentVideo]);
 
   // Play video on demand once source is ready and location prompt has resolved
   useEffect(() => {
@@ -88,9 +90,9 @@ export const StickyVideo: React.FC = () => {
     }
   }, [activeVideoSrc, isLocationModalOpen]);
 
-  // Randomized playback order when video finishes
-  const handleVideoEnded = () => {
-    setCurrentVideoIndex((prev) => getRandomNextIndex(prev, SCAM_VIDEOS.length));
+  // Advance sequentially through the fixed randomized playlist (loops only after all videos play)
+  const handleNextVideo = () => {
+    setPlaylistPosition((prev) => (prev + 1) % FIXED_PAGE_LOAD_PLAYLIST.length);
   };
 
   const videoElement = (
@@ -104,7 +106,7 @@ export const StickyVideo: React.FC = () => {
           autoPlay={!isLocationModalOpen}
           playsInline
           muted={!isVideoUnmuted}
-          onEnded={handleVideoEnded}
+          onEnded={handleNextVideo}
           className={`w-full h-full object-cover transition-filter duration-300 ${
             isLocationModalOpen ? 'blur-md brightness-50' : ''
           }`}
@@ -179,11 +181,11 @@ export const StickyVideo: React.FC = () => {
         </button>
 
         <button
-          onClick={handleVideoEnded}
-          className="flex items-center gap-1 px-2 py-1 rounded bg-black/70 hover:bg-black text-neutral-300 text-[10px] font-semibold border border-neutral-700 cursor-pointer"
-          title="Play random next scam video"
+          onClick={handleNextVideo}
+          className="flex items-center gap-1 px-2.5 py-1 rounded bg-black/70 hover:bg-black text-neutral-300 text-[10px] font-semibold border border-neutral-700 cursor-pointer"
+          title="Play next scam video"
         >
-          <span>Shuffle Next</span>
+          <span>Next Video</span>
           <SkipForward className="w-3 h-3" />
         </button>
       </div>

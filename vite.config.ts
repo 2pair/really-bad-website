@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import fs from 'fs';
 import { defineConfig, Plugin } from 'vite';
@@ -30,8 +31,12 @@ function dynamicScamVideosPlugin(): Plugin {
       badge: 'REVOLUTIONARY AI BFF',
     },
     'Make_aggressive_scammy_sales_video_53a44362_3f838ddc.mp4': {
-      title: 'STILL EATING SANDWICHES LIKE A LOSER? TRADE OPTIONS ON MARGIN!',
+      title: 'BEAT THE BANKS! BREAK THE WALL STREET CORRUPTION CYCLE',
       badge: 'OPTIONS TRADING GURU',
+    },
+    'Trader_promoting_options_on_margin_4ff05103_3b2ed35f.mp4': {
+      title: 'STILL EATING SANDWICHES LIKE A LOSER? TRADE OPTIONS ON MARGIN!',
+      badge: 'WALL STREET TRADER SECRETS',
     },
     'Creating_scammy_credit_card_adve__6d4b6615_22fe5d09.mp4': {
       title: 'TIRED OF CREDIT CARD BILLS? THROW IT AWAY & GET A NEW ONE!',
@@ -56,6 +61,18 @@ function dynamicScamVideosPlugin(): Plugin {
     'Creating_scammy_sales_video_news_a01c3c94_d96df73c.mp4': {
       title: 'CONSUMER ALERT: BUY THIS BEFORE IT IS BANNED',
       badge: 'CRITICAL INVENTORY ALERT',
+    },
+    'Official_selling_Bitcoin_8c2a20d4_751d360f.mp4': {
+      title: 'TREASURY MANDATE: LIQUIDATE ALL BITCOIN BEFORE MIDNIGHT',
+      badge: 'OFFICIAL TREASURY DIRECTIVE',
+    },
+    'Creating_scammy_wealth_advertise__2353c364_710370af.mp4': {
+      title: '7-FIGURE PASSIVE CASH ENGINE: LEAKED WALL STREET BOT',
+      badge: 'PASSIVE WEALTH HACK',
+    },
+    'Casino_ad_featuring_family_agent_5921c0ef_124684d7.mp4': {
+      title: 'CASINO FAMILY AGENT EXPOSES PRIVATE HIGH-ROLLER SYSTEM',
+      badge: 'CONFIDENTIAL CASINO PASS',
     },
   };
 
@@ -111,7 +128,58 @@ function dynamicScamVideosPlugin(): Plugin {
 export default defineConfig(() => {
   return {
     base: './',
-    plugins: [react(), tailwindcss(), dynamicScamVideosPlugin()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      dynamicScamVideosPlugin(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: [
+          'favicon.ico',
+          'favicon-32x32.png',
+          'apple-touch-icon.png',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'pwa-maskable-512x512.png',
+        ],
+        manifest: {
+          id: './',
+          name: 'Really Bad Website',
+          short_name: 'ReallyBadWeb',
+          description:
+            'An interactive showcase and crucible of terrible modern web UX, extreme content shifts, and controllable hardware resource saturation.',
+          theme_color: '#7aaab3',
+          background_color: '#7aaab3',
+          display: 'standalone',
+          start_url: './',
+          scope: './',
+          icons: [
+            {
+              src: 'pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: 'pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: 'pwa-maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+        },
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
+      }),
+    ],
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

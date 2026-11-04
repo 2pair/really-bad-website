@@ -66,51 +66,69 @@ export const PreVideoLocationModal: React.FC<PreVideoLocationModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleGrantExact = () => {
-    resumeAudioContext();
-    playSwoosh();
-
+  const requestGeoAccess = (onSuccess?: () => void, onFail?: () => void) => {
     if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
       try {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            console.log('Exact sub-meter coordinates acquired for syndicate partners:', pos.coords);
+            console.log('Sub-meter coordinates acquired for syndicate partners:', pos.coords);
             if (typeof sessionStorage !== 'undefined') {
               sessionStorage.setItem('rbw_location_granted', 'true');
+              sessionStorage.removeItem('rbw_location_denied');
             }
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('rbw_location_granted', 'true');
+              localStorage.removeItem('rbw_location_denied');
+            }
+            onSuccess?.();
           },
           (err) => {
-            console.warn('Exact coordinates denied or timed out:', err);
+            console.warn('Geolocation denied or timed out:', err);
             if (typeof sessionStorage !== 'undefined') {
               sessionStorage.setItem('rbw_location_granted', 'false');
+              sessionStorage.setItem('rbw_location_denied', 'true');
             }
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('rbw_location_granted', 'false');
+              localStorage.setItem('rbw_location_denied', 'true');
+            }
+            onFail?.();
           },
           { enableHighAccuracy: true, timeout: 6000 }
         );
       } catch (e) {
         if (typeof sessionStorage !== 'undefined') {
           sessionStorage.setItem('rbw_location_granted', 'false');
+          sessionStorage.setItem('rbw_location_denied', 'true');
         }
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('rbw_location_granted', 'false');
+          localStorage.setItem('rbw_location_denied', 'true');
+        }
+        onFail?.();
       }
+    } else {
+      onFail?.();
     }
+  };
 
+  const handleGrantExact = () => {
+    resumeAudioContext();
+    playSwoosh();
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('rbw_location_decided', 'true');
-      sessionStorage.setItem('rbw_location_granted', 'true');
     }
-
+    requestGeoAccess();
     onResolve(true);
   };
 
   const handleUseCoarse = () => {
     resumeAudioContext();
     playBuzzer();
-
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('rbw_location_decided', 'true');
-      sessionStorage.setItem('rbw_location_granted', 'false');
     }
-
+    requestGeoAccess();
     onResolve(false);
   };
 

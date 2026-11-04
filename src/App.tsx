@@ -12,6 +12,8 @@ import { Popups } from './components/Popups.tsx';
 import { SaturationWorkerPool, WorkerMetrics } from './utils/workerManager.ts';
 import { initConsoleChaos } from './utils/consoleChaos.ts';
 import { cleanupPreviousSessionStorage, setupTabExitNotification } from './utils/storageCleanup.ts';
+import { PWAInstallButton } from './components/PWAInstallButton.tsx';
+import { resolvePublicAsset } from './utils/assetUrl.ts';
 
 function AppContent() {
   // Unconstrained default memory testing ceiling: 16 GB (16384 MB)
@@ -199,13 +201,15 @@ function AppContent() {
         setAdBlockNoticeCount((prev) => prev + 1);
       }
 
-      // Memory span on scroll based on em:
-      // Every 12em of scroll delta, increase memory smoothly (16MB per 12em) up to maxMemoryMB
+      // Resource saturation on scroll based on em:
+      // Every 12em of scroll delta, increase memory, CPU, and storage smoothly
       const emSpanThreshold = 12 * rootFontSize;
       const delta = Math.abs(currentY - lastScrollYRef.current);
       if (delta >= emSpanThreshold) {
         lastScrollYRef.current = currentY;
         setMemoryMB((prev) => Math.min(maxMemoryMB, prev + 16));
+        setCpu((prev) => Math.min(99, prev + 3));
+        setStorageMB((prev) => Math.min(4096, prev + 32));
       }
     };
 
@@ -252,15 +256,25 @@ function AppContent() {
       {/* Main Page Layout */}
       <div className="relative w-full min-h-screen pb-28">
         {/* Top publisher navigation bar */}
-        <nav className="sticky top-0 z-20 w-full bg-white/95 backdrop-blur-md border-b border-neutral-200 px-4 py-3 flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-600 animate-ping" />
-            <span className="font-extrabold tracking-tight text-lg text-neutral-950 font-sans">
-              REALLY BAD WEBSITE<span className="text-blue-600">.IO</span>
-            </span>
+        <nav className="sticky top-0 z-20 w-full bg-white/95 backdrop-blur-md border-b border-neutral-200 px-4 py-2.5 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <img
+              src={resolvePublicAsset('header-logo.png')}
+              alt="Really Bad Website Logo"
+              className="h-8 w-auto max-w-[40px] object-contain drop-shadow-xs"
+            />
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
+              <span className="font-extrabold tracking-tight text-base sm:text-lg text-neutral-950 font-sans">
+                REALLY BAD WEBSITE
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 text-xs font-semibold text-neutral-600">
+            {/* PWA In-App Install Button */}
+            <PWAInstallButton />
+
             {/* Top nav MIDI toggle button tied to Global Audio Controller */}
             <button
               onClick={toggleMidi}
