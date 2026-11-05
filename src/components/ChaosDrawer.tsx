@@ -302,7 +302,7 @@ export const ChaosDrawer: React.FC<ChaosDrawerProps> = ({
             </div>
             <div className="mt-3 pt-3 border-t border-neutral-800 flex justify-between text-[11px] font-mono text-neutral-500">
               <span>IDB Written: {formatBytes(workerMetrics.totalStorageBytes)}</span>
-              <span>Viewport: {Math.round((1 - (storageMB / 4096) * 0.6) * 100)}%</span>
+              <span>Data Fragmentation: {Math.round((storageMB / 4096) * 100)}%</span>
             </div>
           </div>
         </div>

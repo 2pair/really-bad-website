@@ -111,6 +111,34 @@ function AppContent() {
     return () => window.removeEventListener('scroll', handleScrollForFonts);
   }, []);
 
+  // Back button hijacking: pushes synthetic history states and intercepts popstate to prevent leaving
+  useEffect(() => {
+    // Prime the history stack with traps
+    try {
+      window.history.pushState({ page: 'trap-1', site: 'ReallyBadWebsite' }, '', window.location.href);
+      window.history.pushState({ page: 'trap-2', site: 'ReallyBadWebsite' }, '', window.location.href);
+    } catch {
+      // Ignore if history API restricted
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      // Re-inject history entry immediately to absorb the back navigation
+      try {
+        window.history.pushState({ page: 're-trapped', timestamp: Date.now() }, '', window.location.href);
+      } catch {
+        // Ignore
+      }
+
+      // Trigger Todd to comment on their futile attempt to leave
+      setToddPrompt(
+        "Notice you reached for that browser back button! Our 836 data partners kindly request you remain engaged with our high-impact sponsored editorial content."
+      );
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Audio controller
   const { isMidiPlaying, toggleMidi, resumeAudioContext } = useAudioController();
 
@@ -264,7 +292,6 @@ function AppContent() {
               className="h-8 w-auto max-w-[40px] object-contain drop-shadow-xs"
             />
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
               <span className="font-extrabold tracking-tight text-base sm:text-lg text-neutral-950 font-sans">
                 REALLY BAD WEBSITE
               </span>

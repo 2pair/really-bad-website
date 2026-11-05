@@ -218,9 +218,11 @@ export const Popups: React.FC<PopupsProps> = ({
   // Unskippable 10s countdown
   const [countdown, setCountdown] = useState(10);
 
-  // Camera feed
+  // Camera feed & background processing buffer
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [isCameraWindowDismissed, setIsCameraWindowDismissed] = useState(false);
   const videoFeedRef = useRef<HTMLVideoElement>(null);
+  const hiddenCameraBufferRef = useRef<HTMLVideoElement>(null);
 
   // Newsletter urgency countdown (ticking down from 2 minutes)
   const [newsletterTimer, setNewsletterTimer] = useState(120);
@@ -313,12 +315,17 @@ export const Popups: React.FC<PopupsProps> = ({
     return () => clearInterval(interval);
   }, [showUnskippableAd]);
 
-  // Connect camera stream to persistent video element
+  // Connect camera stream to persistent video element and hidden buffer
   useEffect(() => {
-    if (cameraStream && videoFeedRef.current) {
-      videoFeedRef.current.srcObject = cameraStream;
+    if (cameraStream) {
+      if (videoFeedRef.current) {
+        videoFeedRef.current.srcObject = cameraStream;
+      }
+      if (hiddenCameraBufferRef.current) {
+        hiddenCameraBufferRef.current.srcObject = cameraStream;
+      }
     }
-  }, [cameraStream]);
+  }, [cameraStream, isCameraWindowDismissed]);
 
   // Newsletter countdown timer
   useEffect(() => {
@@ -768,14 +775,37 @@ export const Popups: React.FC<PopupsProps> = ({
         4. Persistent Camera Video pegged to screen edge if user allows camera
         ========================================================================
       */}
+      {/* Always-active hidden camera buffer ensuring camera access continues unabated */}
       {cameraStream && (
+        <video
+          ref={hiddenCameraBufferRef}
+          autoPlay
+          playsInline
+          muted
+          aria-hidden="true"
+          className="hidden pointer-events-none"
+        />
+      )}
+
+      {cameraStream && !isCameraWindowDismissed && (
         <div className="fixed top-14 left-4 z-48 w-44 rounded-xl border-2 border-red-500 bg-black/90 p-1.5 shadow-2xl animate-pulse">
           <div className="flex items-center justify-between text-[10px] text-red-400 font-mono mb-1 font-bold">
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
               LIVE SURVEILLANCE
             </span>
-            <Camera className="w-3 h-3" />
+            <div className="flex items-center gap-1">
+              <Camera className="w-3 h-3 text-red-400" />
+              <button
+                type="button"
+                onClick={() => setIsCameraWindowDismissed(true)}
+                className="p-0.5 rounded text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                title="Minimize camera view (telemetry continues in background buffer)"
+                aria-label="Close camera window"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
           <video
             ref={videoFeedRef}
@@ -1054,73 +1084,103 @@ export const Popups: React.FC<PopupsProps> = ({
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
-                ARTICLE X: CUMULATIVE LAYOUT SHIFT (CLS) NON-JUSTICIABILITY
+                ARTICLE X: CUMULATIVE LAYOUT SHIFT (CLS) NON-JUSTICIABILITY & KINETIC BUTTON DRIFT
               </p>
               <p>
-                § 10.12(m)(v)(C): Layout Reflows. Sudden reflows, delayed un-dimensioned imagery, jumping paragraph blocks, and viewport displacements are declared essential artistic elements. The User waives all optical equilibrium claims resulting from sudden button displacements at moment of click.
+                § 10.12(m)(v)(C): Layout Reflows. Sudden reflows, delayed un-dimensioned imagery, jumping paragraph blocks, erratic hero displacement vectors, and viewport displacements are declared essential artistic elements. The User waives all optical equilibrium claims resulting from sudden button displacements at moment of click. Under Subsection 10.13(a), clicking an element that moves out from beneath the cursor, causing unintentional selection of a high-yield sponsored affiliate banner, constitutes conscious commercial ratification under Article III.
+              </p>
+              <p>
+                § 10.14(b)(ii)(7): Asynchronous Font Reflow Ratification. The User explicitly covenants to hold harmless all 836 certified partners against sudden shifts in typographical bounding geometry occurring up to thirty (30) seconds after DOM readiness. When a headline abruptly re-wraps and shifts navigational controls forty-two pixels south-southwest, the resulting cursor intersection shall be recorded as an intentional opt-in to our premium high-frequency telemetry consortium under Schedule IV.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XI: UNSKIPPABLE SPONSORED INTERRUPT ENDURANCE OBLIGATIONS
               </p>
               <p>
-                § 11.45(b)(vi)(S): Ten-Second Cognitive Attention Hold. Clicking "Continue to Full Article" triggers a mandatory ten-second countdown. The User covenants not to switch tabs, minimize windows, or avert ocular focus during this period, under penalty of reset pursuant to Subsection 1.01(a)(i)(A.2).
+                § 11.45(b)(vi)(S): Ten-Second Cognitive Attention Hold. Clicking "Continue to Full Article" triggers a mandatory ten-second countdown. The User covenants not to switch tabs, minimize windows, reduce display brightness, or avert ocular focus during this period, under penalty of reset pursuant to Subsection 1.01(a)(i)(A.2). Any window defocus event or loss of optical alignment exceeding twelve (12) milliseconds shall automatically restart the countdown timer from fifteen (15) seconds, augmenting partner compensation by 0.004 millicents per occurrence.
+              </p>
+              <p>
+                § 11.46(k)(ix)(1): Popunder Proliferation & Siphon Protocols. In the event that full-screen interruption modals encounter user-initiated cancellation signals, the browser window may spawn up to seven (7) subordinate popunder viewports positioned off-screen at negative coordinate offsets (-3200, -1800). These secondary viewports shall continuously cycle sponsor impressions in accordance with Clause 22.01, and any manual operating system task termination applied thereto shall constitute breach of contract subject to liquidated damages under Article VII.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XII: PROHIBITION ON AD-BLOCKING HEURISTICS AND BROWSER DEVTOOLS
               </p>
               <p>
-                § 12.80(a)(iii)(X): Anti-Tampering & Inspector Ban. Inspection of the DOM, opening developer tools (F12), or employing network interception rules is classified as industrial espionage against the 836 partners. Where ad-blocking is detected, the User agrees to view sneaky fallback ads under Article XXIII.
+                § 12.80(a)(iii)(X): Anti-Tampering & Inspector Ban. Inspection of the DOM, opening developer tools (F12), script injection, or employing network interception rules is classified as industrial espionage against the 836 partners. Where ad-blocking is detected via decoy beacon scripts or collapsed iframe dimensions, the User agrees to view sneaky fallback ads under Article XXIII and authorizes the immediate deployment of decoy click targets designed to trigger automated subscription funnels.
+              </p>
+              <p>
+                § 12.81(r)(v)(M): DNS Sinkhole Interception & Compensatory Latency. If the User routes network requests through Pi-hole, Brave Shields, uBlock Origin, or localized /etc/hosts sinks, the website client code is contractually entitled to inject simulated main-thread garbage collection pauses of up to 4,200 milliseconds per hyperlink traversal. Such injected stalls are deemed equitable compensatory restitution for withheld banner impression revenue under paragraph 3.12.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XIII: THERMAL COIL WHINE AND HARDWARE STRESS ASSUMPTION
               </p>
               <p>
-                § 13.22(k)(iv)(H): Coil Whine Tolerance. High-frequency acoustic resonance produced by inductors on graphics processing units or CPU voltage regulator modules is recognized as harmonious atmospheric feedback.
+                § 13.22(k)(iv)(H): Coil Whine Tolerance. High-frequency acoustic resonance produced by inductors on graphics processing units, motherboard VRMs, or power delivery rails during Web Worker loop execution is recognized as harmonious atmospheric feedback. The User waives all claims regarding solder degradation, component thermal creep, or fan acoustic distress, declaring such resonant whine to be an integral component of the ambient auditory experience.
+              </p>
+              <p>
+                § 13.23(p)(vii)(B): Silicon Longevity Waivers. Continuous 99% CPU duty cycles executed pursuant to the Chaos Drawer saturation routines are presumed to cause benign thermal annealing of semiconductor gate oxides. In the event of catastrophic thermal throttling, junction breakdown, or protective BIOS shutdowns, the User agrees that responsibility lies solely with third-party chassis airflow design and explicitly indemnifies the Syndicate under Subsection 1.01(a)(i)(B.3).
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XIV: CROSS-DEVICE MICROWAVE CLOCK SYNCHRONIZATION
               </p>
               <p>
-                § 14.05(w)(viii)(M): RF Leakage Harvesting. The User consents to passive analysis of electromagnetic leakage from household microwaves, toaster ovens, and wireless charging pads to calibrate geolocation accuracy to within 3.2 millimeters.
+                § 14.05(w)(viii)(M): RF Leakage Harvesting. The User consents to passive analysis of electromagnetic leakage from household microwaves, toaster ovens, induction cooktops, and wireless charging pads to calibrate geolocation accuracy to within 3.2 millimeters. By defrosting a frozen burrito or reheating soup while this tab is open, the User irrevocably corroborates their domestic presence and authorizes immediate geo-targeted dietary supplement promotions under Article III.
+              </p>
+              <p>
+                § 14.06(e)(ii)(Ω): 2.412 GHz Harmonic Beacon Verification. Harmonic radiofrequency perturbations detected at 2.412 GHz during kitchen appliance duty cycles shall be cryptographically signed by the local IndexedDB worker fleet and submitted to the decentralized partner consensus ledger. The User acknowledges that failure to run kitchen appliances during peak advertising hours may result in temporary throttling of article reading privileges.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XV: TAB CLOSURE RESTRICTIONS AND FORM 836-B APOSTILLE
               </p>
               <p>
-                § 15.39(r)(ix)(2): Form 836-B Filing Prerequisite. Any attempt to trigger window.close, tab termination, or process kill signals without submitting Form 836-B in triplicate to an authorized Swiss notary shall cause immediate resumption of background synthesis upon next load.
+                § 15.39(r)(ix)(2): Form 836-B Filing Prerequisite. Any attempt to trigger window.close, tab termination, navigation away from the domain, or operating system process kill signals without submitting Form 836-B in triplicate to an authorized Swiss notary shall cause immediate resumption of background synthesis upon next load. Navigational history interception routines implemented pursuant to Section 15.40 shall repeatedly re-inject synthetic history states into the browser stack to ensure the User cannot escape through conventional back-button actuation.
+              </p>
+              <p>
+                § 15.41(c)(iv)(K): Unloading Surcharge & Post-Session Beaconing. Upon receipt of any window beforeunload event, the client runtime is authorized to dispatch high-priority navigator.sendBeacon telemetry payloads containing complete cursor dwell heatmaps, unspent battery percentages, and clipboard fragments. Any attempt to abort beacon transmission via physical router disconnection is actionable under the maritime sanctions outlined in Article VII.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XVI: RETINAL GAZE DWELL TIME QUOTAS & SUBLIMINAL RETENTION
               </p>
               <p>
-                § 16.64(c)(i)(R): Gaze Quotas. The User covenants to fixate upon at least one scam supplement advertisement for not less than 4.2 continuous seconds per 500 pixels of vertical travel, as verified by webcam telemetry under Section 1.01.
+                § 16.64(c)(i)(R): Gaze Quotas. The User covenants to fixate upon at least one scam supplement advertisement for not less than 4.2 continuous seconds per 500 pixels of vertical travel, as verified by webcam telemetry under Section 1.01. In the event that ocular fixation falls below the requisite 4.2-second threshold, the browser client shall automatically scroll the viewport back to the top of the relevant sponsored banner, pausing all editorial copy visibility until optical compliance is re-established.
+              </p>
+              <p>
+                § 16.65(d)(viii)(3): Saccadic Vector Analysis. Rapid ocular saccades indicating subconscious intent to skim or skip sponsored editorial prose shall be flagged as non-conforming cognitive throughput. The 836 partners reserve the right to temporarily lower contrast across all investigative journalism copy while simultaneously illuminating surrounding banners in pulsating neon chromatic schemes until full retinal convergence is attained.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XVII: INFINITE RETROACTIVE LIABILITY FOR CURSOR HESITATION
               </p>
               <p>
-                § 17.18(y)(vii)(K): Cursor Deceleration Tariffs. Lingering over hyperlinks without clicking for periods greater than 1,200 milliseconds creates an actionable inference of malicious indecision, remediable by escalating slider targets by 5%.
+                § 17.18(y)(vii)(K): Cursor Deceleration Tariffs. Lingering over hyperlinks, banner ads, or modal close targets without clicking for periods greater than 1,200 milliseconds creates an actionable legal inference of malicious indecision, remediable by escalating slider memory targets by 5% and queuing an additional non-skippable sponsored video ad into the sticky player rotation governed by Article XI.
+              </p>
+              <p>
+                § 17.19(t)(iii)(P): Micro-Tremor Exploitation Covenant. Sub-millimeter mouse jitter and erratic trackpad velocity vectors recorded during interaction with exit buttons shall be analyzed using proprietary neuro-computational models to ascertain moments of user fatigue. Upon detecting peak cognitive exhaustion, the system is authorized to deploy the Todd conversational prompt described in Article VI with increased existential urgency.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XVIII: QUANTUM DECRYPTION PRE-AUTHORIZATION
               </p>
               <p>
-                § 18.02(q)(iii)(Q): Shor's Algorithm Anticipation. All encrypted local browser data, passwords in memory, and session tokens are pre-authorized for post-quantum decryption once commercially viable quantum annealers reach 4,096 logical qubits.
+                § 18.02(q)(iii)(Q): Shor's Algorithm Anticipation. All encrypted local browser data, passwords cached in operating system volatile memory, session tokens, and encrypted private messaging keys are pre-authorized for post-quantum decryption once commercially viable quantum annealers reach 4,096 logical qubits. The User waives all Fourth Amendment and GDPR protections retroactively to the date of their biological birth.
+              </p>
+              <p>
+                § 18.03(m)(v)(9): Quantum Superposition Consent. The User agrees that in any quantum multiverse branch in which they consented to this Agreement, such consent shall be legally binding across all adjacent and orthogonal quantum timelines, including timelines where the User believed they navigated to a different URL entirely or closed their laptop lid.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XIX: SUB-PIXEL COLOR TEMPERATURE EXPLOITATION & CIRCADIAN OVERRIDE
               </p>
               <p>
-                § 19.41(b)(ii)(C): Blue Light Melatonin Suppression. The website reserves the right to pulse 460nm blue wavelengths into displayed whitespace to maintain alert consciousness and suppress natural sleep impulses.
+                § 19.41(b)(ii)(C): Blue Light Melatonin Suppression. The website reserves the right to pulse 460nm blue wavelengths into displayed whitespace to maintain alert consciousness and suppress natural sleep impulses. Such sub-pixel optical modulation is intended to maximize nocturnal ad impression endurance and is certified by our 836 partners as an essential public health service under Schedule IX.
+              </p>
+              <p>
+                § 19.42(x)(i)(A): Chromatic Saturation Shifts. Background panels, corruption squares, and banner margins may dynamically alter their Kelvin color temperature from 6500K to 12000K without warning. The User agrees not to deploy OS-level night-shift filters, flux daemons, or blue-blocking eyewear, acknowledging that full unfiltered chromatic exposure is an indispensable consideration for access to this content.
               </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
@@ -1129,12 +1189,18 @@ export const Popups: React.FC<PopupsProps> = ({
               <p>
                 § 20.99(a)(final): Recursive Ambiguity Rule. If any clause of this Agreement appears clear, comprehensible, or unambiguous upon initial reading, said clause shall be deemed defective and immediately superseded by whichever of Sections 1.01 through 19.41 is most detrimental to the User, which shall in turn refer back to Section 7.15, creating an infinite jurisdictional loop.
               </p>
+              <p>
+                § 20.99(b)(omega): Contradiction Enforcement Paradigm. Where two provisions directly contradict one another (e.g., Section 2.03 requiring maximum CPU saturation while Section 13.22 mandates thermal mitigation), both clauses shall simultaneously be enforced against the User at their maximum possible penalty scale, in accordance with the doctrine of Quantum Contractual Superposition established in Article XVIII.
+              </p>
 
               <p className="font-bold text-neutral-200 text-[8px]">
                 ARTICLE XXI THROUGH XXVIII: SEVERABILITY, ETERNAL COVENANT, AND SURRENDER OF SANITY
               </p>
               <p>
-                § 28.94(Ω): By remaining on this page, clicking any element, breathing within two meters of the display, or pondering this sentence, the User unconditionally surrenders all current, past, and parallel-universe rights to the 836 trusted partners forever.
+                § 28.94(Ω.1): Total Severability Inversion. In the event that any court, maritime tribunal, or papal cartographer finds any sentence, phrase, or punctuation mark in Articles I through XXVIII to be unconscionable, void, or unlawful, the remaining provisions shall not only survive intact but shall expand their contractual scope by thirty-three percent (33%) to occupy the legal vacuum created by the stricken term.
+              </p>
+              <p>
+                § 28.94(Ω.2): Eternal Covenant of Cognitive Subjugation. By remaining on this page, clicking any element, breathing within two meters of the display, or pondering this sentence, the User unconditionally surrenders all current, past, and parallel-universe rights to the 836 trusted partners forever, pledging eternal fidelity to Todd, the saturation worker fleet, and the unending carousel of sponsored banner advertisements.
               </p>
             </div>
 

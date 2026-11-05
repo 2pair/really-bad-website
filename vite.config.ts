@@ -74,6 +74,18 @@ function dynamicScamVideosPlugin(): Plugin {
       title: 'CASINO FAMILY AGENT EXPOSES PRIVATE HIGH-ROLLER SYSTEM',
       badge: 'CONFIDENTIAL CASINO PASS',
     },
+    'Advertisement_for_moon_property_1d954f19_526f75ad.mp4': {
+      title: 'DO NOT LET CLIMATE CHANGE ANNIHILATE YOUR FAMILY! BUY MOON PROPERTY TODAY',
+      badge: 'OFF-WORLD REAL ESTATE',
+    },
+    'Database_admin_typing_urgent_sca__02494461_26ed1b7e.mp4': {
+      title: 'BANK SECURITY BREACH IMMINENT: CLICK HERE NOW TO SECURE YOUR ACCOUNT',
+      badge: 'CRITICAL CYBER ALERT',
+    },
+    'Man_advertising_herbal_supplements_6e663c08_35e9d406.mp4': {
+      title: 'BECOME IRRESISTIBLE TO EVERYONE: EXCLUSIVE HERBAL SUPPLEMENTS (GUARANTEED)',
+      badge: 'ARISTOCRATIC HERBAL SECRET',
+    },
   };
 
   const scanVideos = () => {

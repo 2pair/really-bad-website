@@ -13,6 +13,9 @@ import freeIpadImg from '../assets/images/free_ipad_ad_1793436246644.jpg';
 import meteorInsuranceImg from '../assets/images/meteor_insurance_1793435782326.jpg';
 import telepathicAnimalImg from '../assets/images/telepathic_animal_ad_1793436248281.jpg';
 import horsePillsImg from '../assets/images/horse_pills_clydesdale_1793774700572.jpg';
+import brainSmartImg from '../assets/images/brain_smart_ad_1793436104942.jpg';
+import pilotSecretImg from '../assets/images/pilot_secret_ad_1793436104935.jpg';
+import robotParrotImg from '../assets/images/robot_parrot_ad_1793436104744.jpg';
 
 interface ScamAdConfig {
   id: string;
@@ -182,6 +185,65 @@ const AD_ROTATION: ScamAdConfig[] = [
     bgColor: 'bg-blue-900',
     textColor: 'text-white',
     fontFamily: "'VT323', monospace",
+  },
+  {
+    id: 'home-title-fraud',
+    type: 'image',
+    headline: 'CRIMINALS STOLE YOUR HOUSE DEED ON THE INTERNET TODAY!',
+    subhead: 'Cybersquatters in Romania have officially refinanced your master bedroom. Lock your property deed with military titanium encryption.',
+    image: robotParrotImg,
+    ctaText: 'CHECK DEED THEFT RISK IN YOUR ZIP CODE ($1)',
+    badge: 'HOMELAND TITLE ALERT',
+    bgColor: 'bg-gradient-to-r from-red-950 via-neutral-950 to-neutral-900',
+    textColor: 'text-red-400',
+    fontFamily: "'Cinzel', Georgia, serif",
+  },
+  {
+    id: 'brain-neuropeptide-elixir',
+    type: 'image',
+    headline: 'IVY LEAGUE LAB BANS UNETHICAL NEUROPEPTIDE MEMORY HACK',
+    subhead: 'Undergraduate student unlocks 185 IQ overnight by sniffing powdered Antarctic kelp root. Professors tried to confiscate the formula.',
+    image: brainSmartImg,
+    ctaText: 'DISPENSE EMERGENCY 30-DAY SUPPLY >',
+    badge: 'CENSORED NOOTROPIC COMPOUND',
+    bgColor: 'bg-emerald-950',
+    textColor: 'text-emerald-300',
+    fontFamily: "'Share Tech Mono', monospace",
+  },
+  {
+    id: 'unlimited-private-pilot-glitch',
+    type: 'image',
+    headline: 'DISGRACED AIRLINE DISPATCHER REVEALS UNGUARDED JET TAX EXEMPTION',
+    subhead: 'Book unlimited first-class transatlantic flights for $14 by exploiting 1974 international postal treaties on passenger cargo manifests.',
+    image: pilotSecretImg,
+    ctaText: 'GENERATE UNLIMITED AIRLINE PASS >',
+    badge: 'AIRPORT SECURITY LEAK',
+    bgColor: 'bg-sky-950',
+    textColor: 'text-sky-300',
+    fontFamily: "'Russo One', sans-serif",
+  },
+  {
+    id: 'microwave-rf-aluminum-blanket',
+    type: 'system_alert',
+    headline: '⚠️ SMART METERS TRANSMIT 5G THOUGHT-DECAY WAVES INTO BEDROOMS',
+    subhead: 'NASA space-foil electromagnetic sleep canopy neutralizes 99.8% of neighbor microwave leakage while you rest.',
+    ctaText: 'ORDER MILITARY HARMONIC SHIELD ($39.99)',
+    badge: 'EMF RADIATION DIRECTIVE',
+    bgColor: 'bg-neutral-900',
+    textColor: 'text-amber-400',
+    fontFamily: "'Courier New', monospace",
+  },
+  {
+    id: 'sovereign-silver-wealth-exemption',
+    type: 'image',
+    headline: 'THE SECRET COMMON-LAW TAX CURE THE IRS CANNOT PROSECUTE',
+    subhead: 'File non-resident Moorish sovereign status and receive $85,000 in uncirculated 1884 Morgan silver dollars backed by gold treaties.',
+    image: horsePillsImg,
+    ctaText: 'DOWNLOAD ADMIRALTY MARITIME FILING KIT',
+    badge: 'CONSTITUTIONAL CITIZEN LOOPHOLE',
+    bgColor: 'bg-stone-900',
+    textColor: 'text-yellow-200',
+    fontFamily: "'Bebas Neue', Impact, sans-serif",
   },
 ];
 
