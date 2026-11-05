@@ -90,6 +90,7 @@ function dynamicScamVideosPlugin(): Plugin {
 
   const scanVideos = () => {
     const videoDir = path.resolve(import.meta.dirname, 'public/assets/aistudio');
+    const optimizedDir = path.resolve(import.meta.dirname, 'public/assets/videos-optimized');
     let files: string[] = [];
     try {
       if (fs.existsSync(videoDir)) {
@@ -100,10 +101,15 @@ function dynamicScamVideosPlugin(): Plugin {
     }
 
     return files.map((filename) => {
+      const hasOptimized = fs.existsSync(path.join(optimizedDir, filename));
+      const optimizedSrc = hasOptimized ? `/assets/videos-optimized/${filename}` : `/assets/aistudio/${filename}`;
+      const fallbackSrc = `/assets/aistudio/${filename}`;
+
       if (KNOWN_METADATA[filename]) {
         return {
           filename,
-          src: `/assets/aistudio/${filename}`,
+          src: optimizedSrc,
+          fallbackSrc,
           ...KNOWN_METADATA[filename],
         };
       }
@@ -114,7 +120,8 @@ function dynamicScamVideosPlugin(): Plugin {
         .trim();
       return {
         filename,
-        src: `/assets/aistudio/${filename}`,
+        src: optimizedSrc,
+        fallbackSrc,
         title: cleanName.toUpperCase() || 'EXCLUSIVE SPONSORED DISCLOSURE',
         badge: 'NEW TRANSMISSION',
       };
@@ -123,6 +130,16 @@ function dynamicScamVideosPlugin(): Plugin {
 
   return {
     name: 'dynamic-scam-videos',
+    buildStart() {
+      // Auto-run media optimizer during build or dev server startup
+      try {
+        const { optimizeImages, optimizeVideos } = require('./scripts/optimize-media.ts');
+        optimizeImages();
+        optimizeVideos();
+      } catch (e) {
+        // Fallback gracefully if tsx loader differences
+      }
+    },
     resolveId(id: string) {
       if (id === virtualModuleId) {
         return resolvedVirtualModuleId;

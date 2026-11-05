@@ -4,6 +4,7 @@ declare module 'virtual:scam-videos' {
     src: string;
     badge: string;
     filename: string;
+    fallbackSrc?: string;
   }
   export const SCAM_VIDEOS: ScamVideoItem[];
 }

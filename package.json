@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "optimize-media": "tsx scripts/optimize-media.ts",
+    "prebuild": "tsx scripts/optimize-media.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

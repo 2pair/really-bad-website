@@ -12,6 +12,7 @@ import {
 import { useAudioController } from '../context/AudioControllerContext.tsx';
 import { StickyVideo } from './StickyVideo.tsx';
 import { ScamAds } from './ScamAds.tsx';
+import { OptimizedPicture } from './OptimizedPicture.tsx';
 import { ARTICLES, ArticleData } from '../data/articles.ts';
 import { logNavigationChaos } from '../utils/consoleChaos.ts';
 
@@ -210,8 +211,8 @@ export const BadArticle: React.FC<BadArticleProps> = ({
               </span>
             </div>
 
-            {/* Actual Diagram Image without fixed CSS aspect-ratio containment */}
-            <img
+            {/* Actual Diagram Image using progressive WebP Q65 picture with JPEG fallback */}
+            <OptimizedPicture
               src={currentArticle.figure.image}
               alt={currentArticle.figure.title}
               className="w-full h-auto object-contain bg-neutral-950"
@@ -258,7 +259,7 @@ export const BadArticle: React.FC<BadArticleProps> = ({
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
             <div className="relative shrink-0 mx-auto sm:mx-0">
-              <img
+              <OptimizedPicture
                 src={currentArticle.author.portrait}
                 alt={currentArticle.author.name}
                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-neutral-300 shadow-md bg-neutral-100"

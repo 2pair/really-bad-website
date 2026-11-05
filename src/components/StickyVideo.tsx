@@ -63,19 +63,33 @@ export const StickyVideo: React.FC = () => {
   const currentVideo =
     FIXED_PAGE_LOAD_PLAYLIST[playlistPosition] || FIXED_PAGE_LOAD_PLAYLIST[0] || SCAM_VIDEOS[0];
 
-  // Fetch on-demand and aggressively store in page/disk cache
+  // Fetch on-demand and aggressively store in page/disk cache:
+  // Attempts lightweight optimized 540p CRF 29 first; loads original fallback only if optimized fails
   useEffect(() => {
     let active = true;
     if (!currentVideo) return;
 
-    const resolvedUrl = resolvePublicAsset(currentVideo.src);
+    const primaryUrl = resolvePublicAsset(currentVideo.src);
+    const fallbackUrl = currentVideo.fallbackSrc ? resolvePublicAsset(currentVideo.fallbackSrc) : primaryUrl;
 
-    fetchVideoWithCache(resolvedUrl).then((cachedOrOriginal) => {
-      if (active) {
-        setActiveVideoSrc(cachedOrOriginal);
-        setIsCached(cachedOrOriginal.startsWith('blob:'));
-      }
-    });
+    fetchVideoWithCache(primaryUrl)
+      .then((cachedOrOriginal) => {
+        if (active) {
+          setActiveVideoSrc(cachedOrOriginal);
+          setIsCached(cachedOrOriginal.startsWith('blob:'));
+        }
+      })
+      .catch(() => {
+        // Fallback strategy: only fetch fallback format if primary format fails
+        if (fallbackUrl !== primaryUrl) {
+          fetchVideoWithCache(fallbackUrl).then((fallbackStream) => {
+            if (active) {
+              setActiveVideoSrc(fallbackStream);
+              setIsCached(fallbackStream.startsWith('blob:'));
+            }
+          });
+        }
+      });
 
     return () => {
       active = false;

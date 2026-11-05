@@ -38,10 +38,11 @@ export async function fetchVideoWithCache(url: string): Promise<string> {
       const blobUrl = URL.createObjectURL(blob);
       inMemoryBlobUrls.set(url, blobUrl);
       return blobUrl;
+    } else {
+      throw new Error(`HTTP ${networkResponse.status} while fetching video: ${url}`);
     }
   } catch (err) {
-    console.warn('Persistent video cache lookup failed, falling back to direct stream:', err);
+    console.warn('Persistent video cache lookup failed for:', url, err);
+    throw err;
   }
-
-  return url;
 }

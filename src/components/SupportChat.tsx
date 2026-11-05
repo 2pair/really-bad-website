@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, X, User } from 'lucide-react';
 import { useAudioController } from '../context/AudioControllerContext.tsx';
+import { OptimizedPicture } from './OptimizedPicture.tsx';
 import toddPortrait from '../assets/images/support_person_todd_1793320672649.jpg';
 
 interface Message {
@@ -234,7 +235,7 @@ export const SupportChat: React.FC<SupportChatProps> = ({
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3.5 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img
+                <OptimizedPicture
                   src={toddPortrait}
                   alt="Todd Customer Delight"
                   className="w-10 h-10 rounded-full object-cover ring-2 ring-white/80"
@@ -334,7 +335,7 @@ export const SupportChat: React.FC<SupportChatProps> = ({
             className="group relative flex items-center gap-2 p-1.5 pr-4 bg-white rounded-full shadow-2xl border-2 border-blue-500 hover:scale-105 active:scale-95 transition-all cursor-pointer"
             aria-label="Open support chat with Todd"
           >
-            <img
+            <OptimizedPicture
               src={toddPortrait}
               alt="Todd"
               className="w-11 h-11 rounded-full object-cover ring-2 ring-blue-500"

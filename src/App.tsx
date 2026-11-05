@@ -258,6 +258,7 @@ function AppContent() {
   // Chat starts ONLY when initial popups are closed AND user has scrolled
   const canChatStart = initialPopupsCleared && hasScrolled;
 
+
   return (
     <div
       className={`relative min-h-screen bg-neutral-100 text-neutral-900 selection:bg-amber-200 transition-all ${

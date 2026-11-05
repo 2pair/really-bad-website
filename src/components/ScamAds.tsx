@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Info } from 'lucide-react';
+import { OptimizedPicture } from './OptimizedPicture.tsx';
 
 import jackedSeniorImg from '../assets/images/jacked_senior_diet_1793320684153.jpg';
 import cryptoGuruImg from '../assets/images/crypto_guru_ad_1793320697079.jpg';
@@ -331,7 +332,7 @@ export const ScamAds: React.FC<ScamAdsProps> = ({ position = 'mid' }) => {
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           {currentAd.image && (
             <div className="relative w-full sm:w-48 h-36 shrink-0 bg-black overflow-hidden border-2 border-white shadow-md">
-              <img
+              <OptimizedPicture
                 src={currentAd.image}
                 alt={currentAd.headline}
                 className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-300"
