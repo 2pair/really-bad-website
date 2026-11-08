@@ -1,0 +1,113 @@
+# Really Bad Website
+
+> An interactive funhouse of terrible modern web UX, extreme content shifts, and controllable hardware resource saturation.
+
+---
+
+## 1. Guiding Intent
+
+As humanity has grown more and more chronically online, the way we interact with computers has tended away from the core OS interface and into the browser instead. To meet these demands and attempt to produce native-quality experiences in the browser, web standards have expanded to enable all sorts of powerful features. Many of these features naturally have some amount of safeguards around them, given that the browser is essentially a remote code execution sandbox. 
+
+Despite this, there is still a surprising amount of capability and capacity granted to websites without any direct approval. This project was originally designed as a way to demonstrate that, but it has additionally grown into an interactive gallery showcasing the absolute worst of the modern web.
+
+### The Sandbox Paradox: Zero Consent vs. Explicit Prompts
+Modern browser security models establish an interesting double standard:
+- **High value personal information requires form prompts**: If a site wants your GPS coordinates, your camera feed, microphone access, or permission to push notifications, the browser halts execution and displays a native permission modal.
+- **Catastrophic Hardware Saturation Requires Zero Consent**: A website can silently spin up background worker threads across every CPU core, allocate gigabytes of system RAM until the OS terminates the tab, write gigabytes of data to local disk storage, hijack your history stack, and induce severe thermal throttling and battery drain without prompting the user once.
+
+Ever wonder why your phone gets scalding hot while browsing certain modern sites? It's because they are hammering your CPU. Whether that is the result of bloated JavaScript frameworks, unoptimized asset pipelines, crypto-mining scripts, or aggressive client-side telemetry, all are welcome in the browser sandbox.
+
+### The Zero-Exfiltration Guarantee
+Unlike commercial websites that harvest personal data to package and monetize it across third-party ad exchanges, **Really Bad Website does not send any data anywhere at all**. The application is entirely static and runs 100% client-side:
+- No tracking pixels or analytics beacons.
+- No remote telemetry collection.
+- No backend user databases.
+
+You can freely consent to every invasive prompt, grant your camera and location, or outwit the dark patterns and reject them all. Either way, the site demonstrates how much authority an untrusted webpage can exercise over your physical device.
+
+---
+
+## 2. Resource Saturation Engine (Zero-Consent Exploits)
+
+The site contains an automated hardware saturation engine that scales its computational assault as you browse and scroll through the page:
+
+### Multi-Core CPU Thermal Burner
+- **Hardware Concurrency Detection**: Automatically inspects `navigator.hardwareConcurrency` to detect the total number of physical and logical CPU cores on the host machine.
+- **Worker Saturation Pool (`SaturationWorkerPool`)**: Spawns a dedicated Web Worker per detected core. Each worker executes intense, continuous cryptographic hash calculations and mathematical loop cycles off the main thread.
+- **Duty-Cycle Pulse Algorithm**: Rather than locking up the browser thread and tripping browser "Unresponsive Script" watchdogs, CPU execution cycles between aggressive bursts and micro-sleep intervals (scaling up to 99% duty cycle), maximizing sustained thermal pressure and battery drain.
+- **Screen Edge Thermal Glow (`CpuBurningEffect`)**: Real-time canvas overlay that renders an incandescent, pulsing thermal burn across the viewport edges as CPU utilization spikes.
+
+### RAM Heap Saturation & OOM Survival
+- **Dynamic ArrayBuffer Ballooning**: Progressively allocates large contiguous blocks of raw memory (scaling up to a 16 GB ceiling or the platform's hardware limit) to saturate device memory.
+- **Main Thread Event-Loop Lag (`UiLagEffect`)**: Injects artificial synchronous micro-stalls into the main thread that scale dynamically with allocated memory, creating the authentic sluggish, stuttering sensation of a device suffocating on RAM.
+- **Crash Recovery & Clamp Safeguard**: Mobile browsers (especially iOS WebKit) aggressively terminate tabs that exceed strict memory thresholds via Out-Of-Memory (OOM) kills. To prevent infinite boot-crash loops:
+  - The site maintains a persistent heartbeat log in `localStorage` (`memory_tried`, `memory_used`, `memory_alive`).
+  - If a session terminates unexpectedly before the heartbeat confirms stability, subsequent reloads automatically clamp memory allocation safely beneath that device-specific crash threshold (`highWatermarkMB`).
+
+### Storage Quota Exhaustion & Screen Corruption
+- **IndexedDB & CacheStorage Flood**: Asynchronously writes dummy byte payloads to persistent client-side storage, systematically driving toward the browser's origin quota ceiling.
+- **Visual Screen Corruption (`StorageCorruptionEffect`)**: As available storage is filled, the UI generates scaled 1mm visual corruptor square artifacts scattered across the viewport, creating a visual representation of catastrophic disk sector damage.
+- **High-Urgency Virus Warning**: Once storage utilization crosses critical thresholds, the site triggers an un-dismissible, high-priority modal with a fake anti-virus scanner animation and a ticking countdown.
+- **Boot-Time Session Clean-Up (`storageCleanup.ts`)**: To prevent the demonstration from permanently consuming your real device disk space across multiple visits, a boot-time garbage collection routine automatically purges previous session stress payloads on site load, giving each visit fresh headroom to run the exhaustion cycle anew.
+
+---
+
+## 3. Cumulative Layout Shift (CLS) Engine & Micro-Hostilities
+
+Beyond raw hardware consumption, the site is tuned to maximize modern web annoyances and destabilize layout stability:
+
+- **Delayed Font-Swapping (`delayed-fonts-applied`)**: System typography is intentionally delayed during initial paint. Once the user begins reading, the typography is abruptly swapped for a heavy display serif, triggering a massive, jarring Cumulative Layout Shift (CLS) that reflows the entire document.
+- **Expanding DOM Containers**: Strategic technical figure callouts and sponsored banners dynamically calculate and inject irregular vertical margins mid-scroll, shifting click targets told as the user attempts to use the site.
+- **Scroll Velocity Synchronization**: Scrolling past specific trigger thresholds dynamically fires resource spikes, causing deliberate frame drops and scroll jank.
+
+---
+
+## 4. Anti-Patterns & Permission Hijacking Inventory
+
+### The Cookie Modal Audio Autoplay Exploit
+Modern browsers enforce strict **Autoplay Policies**: websites cannot play unmuted audio without an explicit user gesture (such as clicking or tapping on the page). 
+
+*Really Bad Website* turns the mandatory cookie consent banner into a Trojan horse: the very act of dismissing, accepting, or interacting with the cookie banner satisfies the browser's requirement for a user gesture, immediately unlocking the Web Audio `AudioContext` to enable synthesized 8-bit background MIDI playback.
+
+### The Precognitive Cookie Gate & Real Cookie Engine
+- **Precognitive Legal Disclaimer**: 
+  > *"Connecting to this website constitutes precognitive agreement to data harvesting, biometric profiling, and inter-dimensional tracking. No take backs."*
+Essentially the same thing every terms of service says today, just with the thin veneer of legal compliance removed.
+- **Authentic Cookie Generation**: Rather than simply claiming to track you, the site actively writes 15+ actual, persistent cookies to your browser storage across satirical tracking categories. Of course, these don’t ever get used by the site.
+
+### Permission Extortion & Escalation Loops
+Some modern browsers strictly block concurrent permission requests or permission requests on page load. To get around this, the requests are tied to the barrage of initial modals and every standard exit control is weaponized:
+- **Camera Surveillance Trap**: Clicking the close ("X") button on the live camera viewport does not stop the media stream or revoke permission; it silently detaches the feed from the screen and dumps the live frames into an unrendered off-screen buffer.
+- **Geolocation Paywall**: Dismissing advertiser deals or attempting to unmute the floating video player prompts a native Geolocation request under the guise of localizing promotional content.
+- **Ad-Blocker Notification Disguise**: A full screen popup asks users to disable their ad blockers. Unlike most of its real equivalents, this one can simply be dismissed. Also unlike them, every button triggers the browser's native Push Notification prompt.
+- **Escalation Routing**: Every "Close", "Cancel", "Deny", or backdrop click on secondary modals is programmatically wired to re-request or escalate browser permissions prior to closing the dialog.
+
+### PWA Background Notification Harassment
+Standard iOS Safari prohibits websites from sending Web Push notifications inside standard browser tabs. To circumvent this sandbox limitation:
+- The site provides an in-app Progressive Web App (PWA) installation mechanism.
+- Once installed to the mobile home screen, the site gains access to standalone Web Push capabilities, enabling it to dispatch notifications to the user even after they have navigated away, backgrounded, or closed the app.
+
+### Navigation & Back-Button Hijacking
+Attempting to leave the site by pressing the browser's Back button is intercepted via a continuous `history.pushState` loop. Back-navigation events are swallowed and redirected back onto the site, keeping the user anchored inside the experience.
+
+### Todd: The Passive-Aggressive Support Agent
+An automated live chat agent ("Todd") tracks the exact browser APIs you decline. If you deny camera access, refuse geolocation, or dismiss modals, Todd directly confronts you in chat with guilt-tripping canned responses (*"If you would share your webcam, I wouldn't have to ask"*). If you _do _ grant access Todd still harasses you, he’s just not mean about it.
+
+---
+
+## 5. Technical Ad Infrastructure & Media Architecture
+
+### The Mid-Article Blocking Interstitial
+Midway through the main article, reading progress is completely halted by a full-page modal interstitial ad that pins itself over the viewport with maximum `z-index`, and a timer preventing immediate dismissal, forcing the user to accept or wakt before reading can resume.
+
+### A Rare Oasis of Good Web Design (Bandwidth Cap Protection)
+Hosting heavy multimedia on static hosts (such as GitHub Pages) introduces a risk of hitting monthly soft or hard bandwidth quotas. To showcase predatory web patterns without causing massive bandwidth waste, the media delivery layer was engineered to utilize the most broadly supported web performance practices:
+
+#### 1. Progressive Image Optimization Pipeline
+- **WebP Q65 Build Pipeline**: All source images are automatically converted at build time using ImageMagick and `libwebp` (`-quality 65 -define webp:method=6`), slashing original JPEG payloads from ~22 MB down to ~2.8 MB (an **85% to 94% reduction** per image).
+- **Progressive `<picture>` Elements**: Implemented via custom `<OptimizedPicture>` components. The browser loads the ultra-lightweight WebP asset and will only download the source JPEG fallback if WebP decoding is unsupported or fails.
+
+#### 2. Video Delivery & Aggressive Client-Side Caching
+- **H.264 540p CRF 29 Compression**: All 19 syndicated video broadcasts were transcoded from 720p down to 540p (`scale=-2:540`) with H.264 CRF 29 and 64k AAC audio. This sits in the perceptual fidelity sweet spot while cutting aggregate video weight from ~92 MB to ~19 MB (**~79% bandwidth savings**).
+- **On-Demand `CacheStorage` Pipeline**: Videos are not downloaded up front. When queued in the floating player, each video is fetched on demand and cloned permanently into the browser's native `CacheStorage` (`reallybad-video-store-v1`). Repeated playback of the randomized playlist runs entirely from local disk cache with zero subsequent network ingress.
+- **Fail-Safe Source Fallback**: The client loader queries the optimized 540p stream first; only if that request fails will it fall back to the uncompressed 720p master copy.
